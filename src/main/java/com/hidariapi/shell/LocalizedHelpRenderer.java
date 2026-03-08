@@ -88,7 +88,16 @@ public class LocalizedHelpRenderer extends LocalizedSupport {
                 section("Produtividade", "Productivity",
                         item("alias-set <nome> \"<comando>\"", "Cria alias customizado.", "Creates custom alias."),
                         item("alias-run <nome> [--args \"...\"] / a <nome>", "Executa alias.", "Runs alias."),
-                        item("aliases / alias-rm <nome>", "Lista/remove aliases.", "Lists/removes aliases.")
+                        item("aliases / alias-rm <nome>", "Lista/remove aliases.", "Lists/removes aliases."),
+                        item("shortcut-set <nome> \"<comando>\" / shortcut-run <nome>", "Atalhos por configuracao.", "Configuration-based shortcuts."),
+                        item("shortcuts / shortcut-rm <nome>", "Lista/remove atalhos.", "Lists/removes shortcuts.")
+                ),
+                section("Configuracao", "Configuration",
+                        item("config-set <chave> <valor>", "Define config global.", "Sets global config."),
+                        item("config-get <chave> / config-list", "Le/lista configs.", "Reads/lists configs."),
+                        item("profile-use <nome>", "Ativa profile.", "Activates profile."),
+                        item("profile-set-base-url <profile> <url>", "Define base_url do profile.", "Sets profile base_url."),
+                        item("profile-list", "Lista profiles.", "Lists profiles.")
                 ),
                 section("Historico", "History",
                         item("history [--limit N]", "Mostra historico.", "Shows history."),

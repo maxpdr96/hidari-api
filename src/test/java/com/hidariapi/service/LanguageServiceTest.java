@@ -17,14 +17,14 @@ class LanguageServiceTest {
 
     @Test
     void defaultsToPtAndPersistsSelection() {
-        var service = new LanguageService();
+        var service = new LanguageService(new ConfigService(new com.hidariapi.store.ConfigStore()));
         assertEquals(Language.PT, service.getCurrent());
 
         service.setCurrent(Language.EN);
         assertTrue(service.isEnglish());
         assertEquals("en", service.t("pt", "en"));
 
-        var reloaded = new LanguageService();
+        var reloaded = new LanguageService(new ConfigService(new com.hidariapi.store.ConfigStore()));
         assertEquals(Language.EN, reloaded.getCurrent());
     }
 }

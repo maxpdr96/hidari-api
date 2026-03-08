@@ -1,7 +1,9 @@
 package com.hidariapi.shell;
 
 import com.hidariapi.model.Language;
+import com.hidariapi.service.ConfigService;
 import com.hidariapi.service.LanguageService;
+import com.hidariapi.store.ConfigStore;
 import com.hidariapi.util.AppPaths;
 import com.hidariapi.util.TestFs;
 import org.junit.jupiter.api.BeforeEach;
@@ -18,7 +20,7 @@ class LocalizedHelpRendererTest {
 
     @Test
     void rendersInPortugueseAndEnglish() {
-        var lang = new LanguageService();
+        var lang = new LanguageService(new ConfigService(new ConfigStore()));
         var renderer = new LocalizedHelpRenderer(lang);
 
         lang.setCurrent(Language.PT);

@@ -1,7 +1,9 @@
 package com.hidariapi.shell;
 
 import com.hidariapi.model.Language;
+import com.hidariapi.service.ConfigService;
 import com.hidariapi.service.LanguageService;
+import com.hidariapi.store.ConfigStore;
 import org.junit.jupiter.api.Test;
 import org.springframework.shell.command.CommandRegistration;
 import org.springframework.shell.result.CommandNotFoundMessageProvider;
@@ -17,7 +19,7 @@ class CommandSuggestionProviderTest {
 
     @Test
     void suggestsClosestCommandWhenTypoOccurs() {
-        var lang = new LanguageService();
+        var lang = new LanguageService(new ConfigService(new ConfigStore()));
         lang.setCurrent(Language.EN);
         var provider = new CommandSuggestionProvider(lang);
 

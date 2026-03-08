@@ -450,6 +450,37 @@ alias-run gh-health --args "--output health.json"
 alias-rm gh-health
 ```
 
+### Config centralizada (config + profiles + shortcuts)
+
+Agora a ferramenta possui configuracao central em `config.json` (inclui `language`).
+
+Now the tool has centralized configuration in `config.json` (including `language`).
+
+```bash
+# listar tudo
+config-list
+
+# linguagem (equivale ao comando language)
+config-set language en
+config-get language
+
+# defaults de requests
+config-set request.default-call 10
+config-set request.default-parallel 5
+config-set request.default-output @/home/user/default-batch.json
+
+# profiles com base_url
+profile-set-base-url dev http://localhost:8080
+profile-use dev
+profile-list
+
+# atalhos configuraveis (feature de hotkeys/shortcuts)
+shortcut-set health "get /health"
+shortcuts
+shortcut-run health
+shortcut-rm health
+```
+
 ### Import de OpenAPI/Swagger e Postman
 
 Importe especificacoes para gerar collections automaticamente e, no caso de OpenAPI, mocks iniciais.
@@ -945,6 +976,9 @@ They are simple JSON files — you can edit them manually if you want.
 | `alias-set <name> "<command>"` | Criar/atualizar alias / Create/update alias |
 | `alias-run <name> [--args "..."]` | Executar alias / Execute alias |
 | `aliases / alias-rm <name>` | Listar/remover aliases / List/remove aliases |
+| `config-set <key> <value> / config-get <key> / config-list` | Configuracao central / Central config |
+| `profile-use <name> / profile-set-base-url <p> <url> / profile-list` | Profiles de config / Config profiles |
+| `shortcut-set <name> "<command>" / shortcut-run <name> / shortcuts` | Atalhos configuraveis / Configurable shortcuts |
 
 ### Resposta / Response
 
