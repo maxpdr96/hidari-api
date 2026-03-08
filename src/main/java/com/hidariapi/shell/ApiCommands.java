@@ -3,6 +3,7 @@ package com.hidariapi.shell;
 import com.hidariapi.model.*;
 import com.hidariapi.model.Collection;
 import com.hidariapi.service.ApiService;
+import com.hidariapi.util.CurlParser;
 import com.hidariapi.util.JsonFormatter;
 import org.jline.utils.AttributedStringBuilder;
 import org.jline.utils.AttributedStyle;
@@ -10,6 +11,7 @@ import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
 
+import java.io.IOException;
 import java.util.*;
 
 /**
@@ -33,52 +35,72 @@ public class ApiCommands {
 
     private final ApiService service;
     private final JsonFormatter jsonFormatter;
+    private final CurlParser curlParser;
 
-    public ApiCommands(ApiService service, JsonFormatter jsonFormatter) {
+    public ApiCommands(ApiService service, JsonFormatter jsonFormatter, CurlParser curlParser) {
         this.service = service;
         this.jsonFormatter = jsonFormatter;
+        this.curlParser = curlParser;
     }
 
     // ========== HTTP REQUESTS ==============================================
 
     @ShellMethod(key = "get", value = "Envia requisicao GET")
-    public String get(@ShellOption(help = "URL") String url) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.GET, url));
+    public String get(
+            @ShellOption(help = "URL") String url,
+            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
+                    help = "Query params (formato key=value, multiplos separados por &)") String params) {
+        return executeRequest(ApiRequest.of(null, HttpMethod.GET, appendParams(url, params)));
     }
 
     @ShellMethod(key = "post", value = "Envia requisicao POST com body JSON")
     public String post(
             @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL, help = "Body JSON") String body) {
-        var req = ApiRequest.of(null, HttpMethod.POST, url)
+            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
+                    help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
+            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
+                    help = "Query params (formato key=value, multiplos separados por &)") String params) {
+        var req = ApiRequest.of(null, HttpMethod.POST, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
-        if (body != null) req = req.withBody(body);
+        req = resolveAndSetBody(req, body);
+        if (req == null) return styled(RED, "Erro ao ler body do arquivo.");
         return executeRequest(req);
     }
 
     @ShellMethod(key = "put", value = "Envia requisicao PUT com body JSON")
     public String put(
             @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL, help = "Body JSON") String body) {
-        var req = ApiRequest.of(null, HttpMethod.PUT, url)
+            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
+                    help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
+            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
+                    help = "Query params (formato key=value, multiplos separados por &)") String params) {
+        var req = ApiRequest.of(null, HttpMethod.PUT, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
-        if (body != null) req = req.withBody(body);
+        req = resolveAndSetBody(req, body);
+        if (req == null) return styled(RED, "Erro ao ler body do arquivo.");
         return executeRequest(req);
     }
 
     @ShellMethod(key = "patch", value = "Envia requisicao PATCH com body JSON")
     public String patch(
             @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL, help = "Body JSON") String body) {
-        var req = ApiRequest.of(null, HttpMethod.PATCH, url)
+            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
+                    help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
+            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
+                    help = "Query params (formato key=value, multiplos separados por &)") String params) {
+        var req = ApiRequest.of(null, HttpMethod.PATCH, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
-        if (body != null) req = req.withBody(body);
+        req = resolveAndSetBody(req, body);
+        if (req == null) return styled(RED, "Erro ao ler body do arquivo.");
         return executeRequest(req);
     }
 
     @ShellMethod(key = "delete", value = "Envia requisicao DELETE")
-    public String delete(@ShellOption(help = "URL") String url) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.DELETE, url));
+    public String delete(
+            @ShellOption(help = "URL") String url,
+            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
+                    help = "Query params (formato key=value, multiplos separados por &)") String params) {
+        return executeRequest(ApiRequest.of(null, HttpMethod.DELETE, appendParams(url, params)));
     }
 
     @ShellMethod(key = "head", value = "Envia requisicao HEAD (retorna apenas headers)")
@@ -97,8 +119,11 @@ public class ApiCommands {
             @ShellOption(help = "URL") String url,
             @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
                     help = "Header (formato Key:Value, multiplos separados por ;)") String headers,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL, help = "Body") String body) {
-        var req = ApiRequest.of(null, HttpMethod.fromString(method), url);
+            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
+                    help = "Body (use @arquivo.json para ler de arquivo)") String body,
+            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
+                    help = "Query params (formato key=value, multiplos separados por &)") String params) {
+        var req = ApiRequest.of(null, HttpMethod.fromString(method), appendParams(url, params));
         if (headers != null) {
             for (var h : headers.split(";")) {
                 var parts = h.split(":", 2);
@@ -107,7 +132,8 @@ public class ApiCommands {
                 }
             }
         }
-        if (body != null) req = req.withBody(body);
+        req = resolveAndSetBody(req, body);
+        if (req == null) return styled(RED, "Erro ao ler body do arquivo.");
         return executeRequest(req);
     }
 
@@ -141,6 +167,66 @@ public class ApiCommands {
         var req = service.getLastRequest();
         if (req == null) return styled(YELLOW, "Nenhum request ainda.");
         return styled(CYAN, req.toCurl());
+    }
+
+    @ShellMethod(key = "import-curl", value = "Importa um comando cURL e executa como request")
+    public String importCurl(
+            @ShellOption(help = "Comando cURL completo (entre aspas)") String curlCommand,
+            @ShellOption(value = "--save", defaultValue = ShellOption.NULL,
+                    help = "Salvar na colecao (formato colecao:nome)") String save,
+            @ShellOption(value = "--dry-run", defaultValue = "false",
+                    help = "Apenas parseia sem executar") boolean dryRun) {
+        try {
+            var req = curlParser.parse(curlCommand);
+
+            if (dryRun) {
+                var sb = new StringBuilder();
+                sb.append(styled(BOLD_CYAN, "\n  Request parseado do cURL\n\n"));
+                sb.append(styled(BOLD, "  " + req.method() + " ")).append(req.url()).append("\n");
+                if (!req.headers().isEmpty()) {
+                    for (var h : req.headers().entrySet()) {
+                        sb.append(styled(DIM, "  " + h.getKey() + ": ")).append(h.getValue()).append("\n");
+                    }
+                }
+                if (req.body() != null && !req.body().isBlank()) {
+                    sb.append(styled(DIM, "\n  Body:\n"));
+                    var bodyText = jsonFormatter.isValidJson(req.body())
+                            ? jsonFormatter.prettify(req.body()) : req.body();
+                    for (var line : bodyText.split("\n")) {
+                        sb.append("  ").append(line).append("\n");
+                    }
+                }
+                return sb.toString();
+            }
+
+            // Salvar em colecao se pedido
+            if (save != null) {
+                var parts = save.split(":", 2);
+                if (parts.length == 2) {
+                    var col = service.getCollection(parts[0]);
+                    if (col.isPresent()) {
+                        service.saveCollection(col.get().withRequest(req.withName(parts[1])));
+                        System.out.println(styled(GREEN,
+                                "Salvo como '" + parts[1] + "' na colecao '" + parts[0] + "'"));
+                    }
+                }
+            }
+
+            return executeRequest(req);
+        } catch (Exception e) {
+            return styled(RED, "Erro ao parsear cURL: " + e.getMessage());
+        }
+    }
+
+    @ShellMethod(key = "save-response", value = "Salva o body da ultima resposta em um arquivo")
+    public String saveResponse(@ShellOption(help = "Caminho do arquivo") String filePath) {
+        try {
+            service.saveResponseToFile(filePath);
+            var res = service.getLastResponse();
+            return styled(GREEN, "Resposta salva em: " + filePath + " (" + res.sizeText() + ")");
+        } catch (IOException e) {
+            return styled(RED, "Erro ao salvar: " + e.getMessage());
+        }
     }
 
     // ========== DEFAULT HEADERS ============================================
@@ -301,6 +387,19 @@ public class ApiCommands {
         var cols = service.listCollections();
         if (cols.isEmpty()) return styled(DIM, "Nenhuma colecao. Use 'col-create <nome>' para criar.");
         return formatCollections(cols);
+    }
+
+    @ShellMethod(key = "col-run-all", value = "Executa todos os requests de uma colecao (smoke test)")
+    public String colRunAll(@ShellOption(help = "Nome da colecao") String colName) {
+        var col = service.getCollection(colName);
+        if (col.isEmpty()) return styled(RED, "Colecao nao encontrada: " + colName);
+        if (col.get().requests().isEmpty()) return styled(YELLOW, "Colecao vazia.");
+
+        System.out.println(styled(CYAN, "Executando " + col.get().requests().size()
+                + " request(s) da colecao '" + colName + "'...\n"));
+
+        var results = service.runCollection(colName);
+        return formatRunAllResults(colName, results);
     }
 
     @ShellMethod(key = "col-rm", value = "Remove uma colecao")
@@ -564,5 +663,80 @@ public class ApiCommands {
     private String truncate(String text, int max) {
         if (text == null) return "";
         return text.length() > max ? text.substring(0, max - 1) + "~" : text;
+    }
+
+    /** Anexa query params a URL. Params no formato "key=value&key2=value2". */
+    private String appendParams(String url, String params) {
+        if (params == null || params.isBlank()) return url;
+        var separator = url.contains("?") ? "&" : "?";
+        return url + separator + params;
+    }
+
+    /** Resolve body (inline ou @arquivo) e retorna request com body setado. Retorna null se erro. */
+    private ApiRequest resolveAndSetBody(ApiRequest req, String body) {
+        if (body == null) return req;
+        try {
+            var resolved = service.resolveBody(body);
+            return req.withBody(resolved);
+        } catch (IOException e) {
+            System.err.println("Erro ao ler body: " + e.getMessage());
+            return null;
+        }
+    }
+
+    private String formatRunAllResults(String colName, List<ApiService.RunResult> results) {
+        var sb = new StringBuilder();
+        sb.append(styled(BOLD_CYAN, "\n  Resultado: " + colName + "\n\n"));
+
+        sb.append(styled(DIM, String.format("  %-4s %-8s %-6s %-30s %-40s %s%n",
+                "#", "METODO", "STATUS", "NOME", "URL", "TEMPO")));
+        sb.append(styled(DIM, "  " + "-".repeat(105) + "\n"));
+
+        int passed = 0, failed = 0;
+        long totalTime = 0;
+
+        for (int i = 0; i < results.size(); i++) {
+            var r = results.get(i);
+            boolean success = r.error() == null && r.statusCode() >= 200 && r.statusCode() < 400;
+            if (success) passed++;
+            else failed++;
+            totalTime += r.durationMs();
+
+            var methodStyle = switch (r.method()) {
+                case GET -> GREEN;
+                case POST -> YELLOW;
+                case PUT -> CYAN;
+                case PATCH -> MAGENTA;
+                case DELETE -> RED;
+                default -> DIM;
+            };
+
+            var statusStyle = r.error() != null ? BOLD_RED
+                    : r.statusCode() < 300 ? GREEN
+                    : r.statusCode() < 500 ? YELLOW : RED;
+
+            var statusText = r.error() != null ? "ERR" : String.valueOf(r.statusCode());
+
+            sb.append(styled(success ? GREEN : RED, "  " + (success ? "+" : "x") + " "));
+            sb.append(styled(CYAN, String.format("%-3d ", i + 1)));
+            sb.append(styled(methodStyle, String.format("%-8s ", r.method().name())));
+            sb.append(styled(statusStyle, String.format("%-6s ", statusText)));
+            sb.append(styled(BOLD, String.format("%-30s ", truncate(r.name() != null ? r.name() : "-", 29))));
+            sb.append(styled(DIM, String.format("%-40s ", truncate(r.url(), 39))));
+            sb.append(styled(DIM, r.durationMs() + "ms"));
+            sb.append("\n");
+
+            if (r.error() != null) {
+                sb.append(styled(RED, "         " + r.error())).append("\n");
+            }
+        }
+
+        sb.append("\n");
+        var summaryStyle = failed == 0 ? BOLD_GREEN : BOLD_YELLOW;
+        sb.append(styled(summaryStyle, String.format("  %d passed, %d failed", passed, failed)));
+        sb.append(styled(DIM, String.format("  |  total: %dms  |  %d request(s)", totalTime, results.size())));
+        sb.append("\n");
+
+        return sb.toString();
     }
 }

@@ -12,7 +12,10 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -255,6 +258,64 @@ public class ApiService {
 
     public ApiRequest getLastRequest() {
         return lastRequest;
+    }
+
+    // ── Body de arquivo ──────────────────────────────────────────────────────
+
+    /**
+     * Resolve body: se comecar com @, le o conteudo do arquivo.
+     * Ex: "@/home/user/payload.json" le o arquivo e retorna o conteudo.
+     */
+    public String resolveBody(String body) throws IOException {
+        if (body == null) return null;
+        if (body.startsWith("@")) {
+            var path = Path.of(body.substring(1));
+            if (!Files.exists(path)) {
+                throw new IOException("Arquivo nao encontrado: " + path);
+            }
+            return Files.readString(path);
+        }
+        return body;
+    }
+
+    // ── Run All ──────────────────────────────────────────────────────────────
+
+    /** Resultado de execucao de um request da colecao. */
+    public record RunResult(String name, HttpMethod method, String url, int statusCode, long durationMs, String error) {}
+
+    /** Executa todos os requests de uma colecao e retorna resultados. */
+    public List<RunResult> runCollection(String collectionName) {
+        var col = collectionStore.get(collectionName);
+        if (col.isEmpty()) return List.of();
+
+        var results = new ArrayList<RunResult>();
+        for (var req : col.get().requests()) {
+            try {
+                var response = execute(req);
+                results.add(new RunResult(
+                        req.name(), req.method(), req.url(),
+                        response.statusCode(), response.duration().toMillis(), null));
+            } catch (Exception e) {
+                results.add(new RunResult(
+                        req.name(), req.method(), req.url(),
+                        0, 0, e.getMessage()));
+            }
+        }
+        return results;
+    }
+
+    // ── Save Response ────────────────────────────────────────────────────────
+
+    /** Salva o body da ultima resposta em um arquivo. */
+    public void saveResponseToFile(String filePath) throws IOException {
+        if (lastResponse == null) {
+            throw new IOException("Nenhuma resposta para salvar.");
+        }
+        var path = Path.of(filePath);
+        if (path.getParent() != null) {
+            Files.createDirectories(path.getParent());
+        }
+        Files.writeString(path, lastResponse.body());
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────────
