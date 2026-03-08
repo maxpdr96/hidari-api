@@ -359,6 +359,11 @@ You can use templates in URL, headers and body:
 {{$isoTimestamp}}   # ISO-8601
 {{$uuid}}           # UUID randomico
 {{$cpf}}            # CPF valido randomico
+{{$cnpj}}           # CNPJ valido randomico
+{{$cep}}            # CEP randomico (8 digitos)
+{{$phoneBr}}        # Telefone BR randomico (DDD + 9 + 8 digitos)
+{{$fullNameBr}}     # Nome completo brasileiro randomico
+{{$addressBr}}      # Endereco brasileiro randomico
 
 # ambiente
 {{base_url}}
@@ -606,13 +611,18 @@ Inside mock body/headers, you can use:
 {{faker.bool}}
 {{faker.word}}
 {{faker.cpf}}
+{{faker.cnpj}}
+{{faker.cep}}
+{{faker.phone_br}}
+{{faker.full_name_br}}
+{{faker.address_br}}
 ```
 
 Exemplo:
 
 ```bash
 mock-add-json GET /api/users/{id} \
-  --body '{"id":"{{param.id}}","page":"{{query.page}}","cpf":"{{faker.cpf}}"}'
+  --body '{"id":"{{param.id}}","cpf":"{{faker.cpf}}","cnpj":"{{faker.cnpj}}","cep":"{{faker.cep}}","phone":"{{faker.phone_br}}","name":"{{faker.full_name_br}}","address":"{{faker.address_br}}"}'
 ```
 
 #### Editando rotas / Editing routes

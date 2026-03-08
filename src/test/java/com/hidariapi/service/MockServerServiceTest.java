@@ -41,7 +41,8 @@ class MockServerServiceTest {
             port = socket.getLocalPort();
         }
 
-        service.addRoute(MockRoute.json(HttpMethod.GET, "/users/{id}", "{\"id\":\"{{param.id}}\",\"q\":\"{{query.q}}\",\"cpf\":\"{{faker.cpf}}\"}"));
+        service.addRoute(MockRoute.json(HttpMethod.GET, "/users/{id}",
+                "{\"id\":\"{{param.id}}\",\"q\":\"{{query.q}}\",\"cpf\":\"{{faker.cpf}}\",\"cnpj\":\"{{faker.cnpj}}\",\"cep\":\"{{faker.cep}}\",\"phone\":\"{{faker.phone_br}}\",\"name\":\"{{faker.full_name_br}}\",\"address\":\"{{faker.address_br}}\"}"));
         service.start(port);
 
         var client = HttpClient.newHttpClient();
@@ -52,6 +53,11 @@ class MockServerServiceTest {
         assertTrue(res.body().contains("\"id\":\"10\""));
         assertTrue(res.body().contains("\"q\":\"abc\""));
         assertTrue(res.body().matches(".*\\\"cpf\\\":\\\"\\d{11}\\\".*"));
+        assertTrue(res.body().matches(".*\\\"cnpj\\\":\\\"\\d{14}\\\".*"));
+        assertTrue(res.body().matches(".*\\\"cep\\\":\\\"\\d{8}\\\".*"));
+        assertTrue(res.body().matches(".*\\\"phone\\\":\\\"\\d{2}9\\d{8}\\\".*"));
+        assertTrue(res.body().matches(".*\\\"name\\\":\\\"[^\\\"]+\\\".*"));
+        assertTrue(res.body().matches(".*\\\"address\\\":\\\"[^\\\"]*\\d{8}\\\".*"));
         assertFalse(service.getRequestLogs(10).isEmpty());
     }
 }

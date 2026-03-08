@@ -68,7 +68,12 @@ class ApiServiceTest {
 
         var secondReq = ApiRequest.of("second", HttpMethod.GET, "{{base_url}}/item/{{last.body.nested.id}}")
                 .withHeader("X-Prev-Status", "{{last.status}}")
-                .withHeader("X-Cpf", "{{$cpf}}");
+                .withHeader("X-Cpf", "{{$cpf}}")
+                .withHeader("X-Cnpj", "{{faker.cnpj}}")
+                .withHeader("X-Cep", "{{faker.cep}}")
+                .withHeader("X-Phone", "{{faker.phone_br}}")
+                .withHeader("X-Full-Name", "{{faker.full_name_br}}")
+                .withHeader("X-Address", "{{faker.address_br}}");
 
         var second = service.execute(secondReq);
         assertEquals(200, second.statusCode());
@@ -77,6 +82,11 @@ class ApiServiceTest {
         assertEquals(base + "/item/7", sent.url());
         assertEquals("200", sent.headers().get("X-Prev-Status"));
         assertTrue(sent.headers().get("X-Cpf").matches("\\d{11}"));
+        assertTrue(sent.headers().get("X-Cnpj").matches("\\d{14}"));
+        assertTrue(sent.headers().get("X-Cep").matches("\\d{8}"));
+        assertTrue(sent.headers().get("X-Phone").matches("\\d{2}9\\d{8}"));
+        assertTrue(sent.headers().get("X-Full-Name").split(" ").length >= 3);
+        assertTrue(sent.headers().get("X-Address").matches(".*\\d{8}$"));
     }
 
     @Test

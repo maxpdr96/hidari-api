@@ -89,7 +89,8 @@ public class LocalizedHelpRenderer extends LocalizedSupport {
                         item("clear-history", "Limpa historico.", "Clears history.")
                 ),
                 section("Templates", "Templates",
-                        item("{{$timestamp}} / {{$isoTimestamp}} / {{$uuid}} / {{$cpf}}", "Variaveis dinamicas em URL/header/body.", "Dynamic variables in URL/header/body."),
+                        item("{{$timestamp}} / {{$isoTimestamp}} / {{$uuid}} / {{$cpf}} / {{$cnpj}} / {{$cep}}", "Variaveis dinamicas em URL/header/body.", "Dynamic variables in URL/header/body."),
+                        item("{{$phoneBr}} / {{$fullNameBr}} / {{$addressBr}}", "Fakers brasileiros no runtime.", "Brazilian fakers at runtime."),
                         item("{{chave}} ou {{env.chave}}", "Variavel do ambiente ativo.", "Variable from active environment."),
                         item("{{last.status}} / {{last.header.content-type}}", "Usa dados da ultima resposta.", "Uses data from last response."),
                         item("{{last.body.user.id}}", "Extrai campo JSON da ultima resposta.", "Extracts JSON field from last response.")
@@ -103,7 +104,8 @@ public class LocalizedHelpRenderer extends LocalizedSupport {
                         item("mock-list / mock-show <i> / mock-edit <i> ...", "Lista, mostra e edita rotas.", "Lists, shows and edits routes."),
                         item("mock-rm <i> / mock-clear", "Remove rota(s).", "Removes route(s)."),
                         item("mock-logs [--limit N] / mock-clear-logs", "Mostra/limpa logs do mock.", "Shows/clears mock logs."),
-                        item("{{param.id}} / {{query.page}} / {{faker.uuid}} / {{faker.cpf}}", "Templates dinamicos para body/headers mock.", "Dynamic templates for mock body/headers.")
+                        item("{{param.id}} / {{query.page}} / {{faker.uuid}} / {{faker.cpf}} / {{faker.cnpj}} / {{faker.cep}} / {{faker.phone_br}}", "Templates dinamicos para body/headers mock.", "Dynamic templates for mock body/headers."),
+                        item("{{faker.full_name_br}} / {{faker.address_br}}", "Dados brasileiros uteis para testes.", "Useful Brazilian test data.")
                 )
         );
     }

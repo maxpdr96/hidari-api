@@ -259,6 +259,11 @@ public class MockServerService {
             case "$isoTimestamp", "faker.timestamp" -> context.now().toString();
             case "$uuid", "faker.uuid" -> UUID.randomUUID().toString();
             case "$cpf", "faker.cpf" -> BrazilianDataGenerator.randomCpf();
+            case "$cnpj", "faker.cnpj" -> BrazilianDataGenerator.randomCnpj();
+            case "$cep", "faker.cep" -> BrazilianDataGenerator.randomCep();
+            case "$phoneBr", "faker.phone_br" -> BrazilianDataGenerator.randomPhoneBr();
+            case "$fullNameBr", "faker.full_name_br" -> BrazilianDataGenerator.randomFullNameBr();
+            case "$addressBr", "faker.address_br" -> BrazilianDataGenerator.randomAddressBr();
             case "faker.int" -> String.valueOf(ThreadLocalRandom.current().nextInt(0, 10_000));
             case "faker.bool" -> String.valueOf(ThreadLocalRandom.current().nextBoolean());
             default -> resolveTemplateStructuredExpression(expr, context);
