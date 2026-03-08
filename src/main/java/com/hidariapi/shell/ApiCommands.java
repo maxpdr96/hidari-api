@@ -60,8 +60,8 @@ public class ApiCommands extends LocalizedSupport {
         return styled(GREEN, t("Idioma alterado para: " + language, "Language changed to: " + language));
     }
 
-    @ShellMethod(key = "help", value = "Show translated help")
-    public String help() {
+    @ShellMethod(key = "help-custom", value = "Show translated custom help")
+    public String helpCustom() {
         return helpRenderer.render();
     }
 

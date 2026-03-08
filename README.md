@@ -36,9 +36,9 @@ java -jar target/hidari-api-1.0.0.jar
 mvn spring-boot:run
 ```
 
-Ao abrir, voce vai ver o prompt interativo. Digite `help` para ver todos os comandos.
+Ao abrir, voce vai ver o prompt interativo. Digite `help` para ajuda nativa por comando (inclui `comando --help`) e `help-custom` para a ajuda traduzida.
 
-When you open it, you'll see the interactive prompt. Type `help` to see all commands.
+When you open it, you'll see the interactive prompt. Type `help` for native per-command help (including `command --help`) and `help-custom` for translated help.
 
 Voce pode trocar o idioma do CLI a qualquer momento:
 
