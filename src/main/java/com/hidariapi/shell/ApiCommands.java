@@ -45,13 +45,20 @@ public class ApiCommands {
     private final JsonFormatter jsonFormatter;
     private final CurlParser curlParser;
     private final LanguageService lang;
+    private final LocalizedHelpRenderer helpRenderer;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
-    public ApiCommands(ApiService service, JsonFormatter jsonFormatter, CurlParser curlParser, LanguageService lang) {
+    public ApiCommands(
+            ApiService service,
+            JsonFormatter jsonFormatter,
+            CurlParser curlParser,
+            LanguageService lang,
+            LocalizedHelpRenderer helpRenderer) {
         this.service = service;
         this.jsonFormatter = jsonFormatter;
         this.curlParser = curlParser;
         this.lang = lang;
+        this.helpRenderer = helpRenderer;
     }
 
     // Helper to delegate to LanguageService
@@ -70,80 +77,7 @@ public class ApiCommands {
 
     @ShellMethod(key = "help", value = "Show translated help")
     public String help() {
-        var sb = new StringBuilder();
-        sb.append(styled(BOLD_CYAN, "\n  Hidari API - " + t("Ajuda", "Help") + "\n\n"));
-        sb.append(styled(DIM, "  " + t("Idioma atual", "Current language") + ": "))
-                .append(styled(GREEN, lang.getCurrent().name().toLowerCase()))
-                .append("\n");
-        sb.append(styled(DIM, "  " + t("Dica", "Tip") + ": "))
-                .append(t("use 'language pt' ou 'language eng' para trocar.", "use 'language pt' or 'language eng' to switch."))
-                .append("\n");
-
-        appendHelpSection(sb, t("Requisicoes HTTP", "HTTP Requests"));
-        appendHelpItem(sb, "get <url> [--param k=v&a=b]", t("Envia GET.", "Sends GET."));
-        appendHelpItem(sb, "post <url> --body '{...}' [--param ...]", t("Envia POST JSON.", "Sends JSON POST."));
-        appendHelpItem(sb, "put <url> --body '{...}' [--param ...]", t("Envia PUT JSON.", "Sends JSON PUT."));
-        appendHelpItem(sb, "patch <url> --body '{...}' [--param ...]", t("Envia PATCH JSON.", "Sends JSON PATCH."));
-        appendHelpItem(sb, "delete <url> [--param ...]", t("Envia DELETE.", "Sends DELETE."));
-        appendHelpItem(sb, "head <url>", t("Envia HEAD.", "Sends HEAD."));
-        appendHelpItem(sb, "options <url>", t("Envia OPTIONS.", "Sends OPTIONS."));
-        appendHelpItem(sb, "send <method> <url> [--header ...] [--body ...]", t("Request customizado.", "Custom request."));
-
-        appendHelpSection(sb, t("Resposta", "Response"));
-        appendHelpItem(sb, "response", t("Mostra a resposta completa.", "Shows full response."));
-        appendHelpItem(sb, "body", t("Mostra apenas o body.", "Shows only the body."));
-        appendHelpItem(sb, "response-headers", t("Mostra headers da resposta.", "Shows response headers."));
-        appendHelpItem(sb, "curl", t("Gera cURL do ultimo request.", "Generates cURL from last request."));
-        appendHelpItem(sb, "import-curl \"curl ...\" [--dry-run]", t("Importa e executa cURL.", "Imports and executes cURL."));
-        appendHelpItem(sb, "save-response <arquivo>", t("Salva body em arquivo.", "Saves body to file."));
-
-        appendHelpSection(sb, t("Headers Padrao", "Default Headers"));
-        appendHelpItem(sb, "set-header <key> <value>", t("Define header padrao.", "Sets default header."));
-        appendHelpItem(sb, "unset-header <key>", t("Remove header padrao.", "Removes default header."));
-        appendHelpItem(sb, "headers", t("Lista headers padrao.", "Lists default headers."));
-        appendHelpItem(sb, "clear-headers", t("Limpa headers padrao.", "Clears default headers."));
-        appendHelpItem(sb, "bearer <token>", t("Define Authorization Bearer.", "Sets Authorization Bearer."));
-
-        appendHelpSection(sb, t("Ambientes", "Environments"));
-        appendHelpItem(sb, "env-create <nome>", t("Cria ambiente.", "Creates environment."));
-        appendHelpItem(sb, "env-set <env> <key> <value>", t("Define variavel.", "Sets variable."));
-        appendHelpItem(sb, "env-unset <env> <key>", t("Remove variavel.", "Removes variable."));
-        appendHelpItem(sb, "env-use <nome>", t("Ativa ambiente.", "Activates environment."));
-        appendHelpItem(sb, "env-clear", t("Desativa ambiente.", "Deactivates environment."));
-        appendHelpItem(sb, "envs / env-show <nome> / env-rm <nome>", t("Lista, mostra e remove ambientes.", "Lists, shows and removes environments."));
-
-        appendHelpSection(sb, t("Colecoes", "Collections"));
-        appendHelpItem(sb, "col-create <nome>", t("Cria colecao.", "Creates collection."));
-        appendHelpItem(sb, "col-add <colecao> <nomeRequest>", t("Salva ultimo request.", "Saves last request."));
-        appendHelpItem(sb, "col-show <colecao> / cols", t("Mostra/lista colecoes.", "Shows/lists collections."));
-        appendHelpItem(sb, "col-run <colecao> <indice>", t("Executa request salvo.", "Runs saved request."));
-        appendHelpItem(sb, "col-run-all <colecao>", t("Executa todos os requests.", "Runs all requests."));
-        appendHelpItem(sb, "col-rm-req <colecao> <indice> / col-rm <nome>", t("Remove request/colecao.", "Removes request/collection."));
-
-        appendHelpSection(sb, t("Historico", "History"));
-        appendHelpItem(sb, "history [--limit N]", t("Mostra historico.", "Shows history."));
-        appendHelpItem(sb, "replay <indice>", t("Reexecuta request do historico.", "Replays history request."));
-        appendHelpItem(sb, "clear-history", t("Limpa historico.", "Clears history."));
-
-        appendHelpSection(sb, t("Templates", "Templates"));
-        appendHelpItem(sb, "{{$timestamp}} / {{$isoTimestamp}} / {{$uuid}} / {{$cpf}}", t("Variaveis dinamicas em URL/header/body.", "Dynamic variables in URL/header/body."));
-        appendHelpItem(sb, "{{chave}} ou {{env.chave}}", t("Variavel do ambiente ativo.", "Variable from active environment."));
-        appendHelpItem(sb, "{{last.status}} / {{last.header.content-type}}", t("Usa dados da ultima resposta.", "Uses data from last response."));
-        appendHelpItem(sb, "{{last.body.user.id}}", t("Extrai campo JSON da ultima resposta.", "Extracts JSON field from last response."));
-
-        appendHelpSection(sb, t("Mock Server", "Mock Server"));
-        appendHelpItem(sb, "mock-start [--port 8089] / mock-stop / mock-status", t("Controla servidor mock.", "Controls mock server."));
-        appendHelpItem(sb, "mock-add <method> <path> [--status --body --header --delay --desc]", t("Adiciona rota.", "Adds route."));
-        appendHelpItem(sb, "mock-add-json <method> <path> --body '{...}'", t("Atalho para rota JSON.", "Shortcut for JSON route."));
-        appendHelpItem(sb, "mock-add-crud <basePath>", t("Cria CRUD completo.", "Creates full CRUD."));
-        appendHelpItem(sb, "mock-from-response <path> [--method GET]", t("Cria rota da ultima resposta.", "Creates route from last response."));
-        appendHelpItem(sb, "mock-list / mock-show <i> / mock-edit <i> ...", t("Lista, mostra e edita rotas.", "Lists, shows and edits routes."));
-        appendHelpItem(sb, "mock-rm <i> / mock-clear", t("Remove rota(s).", "Removes route(s)."));
-        appendHelpItem(sb, "mock-logs [--limit N] / mock-clear-logs", t("Mostra/limpa logs do mock.", "Shows/clears mock logs."));
-        appendHelpItem(sb, "{{param.id}} / {{query.page}} / {{faker.uuid}} / {{faker.cpf}}", t("Templates dinamicos para body/headers mock.", "Dynamic templates for mock body/headers."));
-
-        sb.append("\n");
-        return sb.toString();
+        return helpRenderer.render();
     }
 
     // ========== HTTP REQUESTS ==============================================
@@ -951,15 +885,6 @@ public class ApiCommands {
     private String truncate(String text, int max) {
         if (text == null) return "";
         return text.length() > max ? text.substring(0, max - 1) + "~" : text;
-    }
-
-    private void appendHelpSection(StringBuilder sb, String title) {
-        sb.append(styled(BOLD_CYAN, "\n  " + title + "\n"));
-    }
-
-    private void appendHelpItem(StringBuilder sb, String command, String description) {
-        sb.append(styled(CYAN, "  " + String.format("%-52s", command)));
-        sb.append(styled(DIM, " - " + description + "\n"));
     }
 
     /** Appends query params to URL. Params in format "key=value&key2=value2". */
