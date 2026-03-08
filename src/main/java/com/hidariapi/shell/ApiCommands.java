@@ -1,5 +1,6 @@
 package com.hidariapi.shell;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hidariapi.model.*;
 import com.hidariapi.model.Collection;
 import com.hidariapi.model.Language;
@@ -16,6 +17,9 @@ import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
 
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.time.Instant;
 import java.util.*;
 
 /**
@@ -41,6 +45,7 @@ public class ApiCommands {
     private final JsonFormatter jsonFormatter;
     private final CurlParser curlParser;
     private final LanguageService lang;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ApiCommands(ApiService service, JsonFormatter jsonFormatter, CurlParser curlParser, LanguageService lang) {
         this.service = service;
@@ -149,8 +154,10 @@ public class ApiCommands {
             @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
-                    help = "Numero de chamadas sequenciais") int callCount) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.GET, appendParams(url, params)), callCount);
+                    help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
+                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+        return executeRequest(ApiRequest.of(null, HttpMethod.GET, appendParams(url, params)), callCount, outputFile);
     }
 
     @ShellMethod(key = "post", value = "Envia requisicao POST com body JSON")
@@ -161,12 +168,14 @@ public class ApiCommands {
             @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
-                    help = "Numero de chamadas sequenciais") int callCount) {
+                    help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
+                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.POST, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
-        return executeRequest(req, callCount);
+        return executeRequest(req, callCount, outputFile);
     }
 
     @ShellMethod(key = "put", value = "Envia requisicao PUT com body JSON")
@@ -177,12 +186,14 @@ public class ApiCommands {
             @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
-                    help = "Numero de chamadas sequenciais") int callCount) {
+                    help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
+                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.PUT, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
-        return executeRequest(req, callCount);
+        return executeRequest(req, callCount, outputFile);
     }
 
     @ShellMethod(key = "patch", value = "Envia requisicao PATCH com body JSON")
@@ -193,12 +204,14 @@ public class ApiCommands {
             @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
-                    help = "Numero de chamadas sequenciais") int callCount) {
+                    help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
+                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.PATCH, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
-        return executeRequest(req, callCount);
+        return executeRequest(req, callCount, outputFile);
     }
 
     @ShellMethod(key = "delete", value = "Envia requisicao DELETE")
@@ -207,24 +220,30 @@ public class ApiCommands {
             @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
-                    help = "Numero de chamadas sequenciais") int callCount) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.DELETE, appendParams(url, params)), callCount);
+                    help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
+                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+        return executeRequest(ApiRequest.of(null, HttpMethod.DELETE, appendParams(url, params)), callCount, outputFile);
     }
 
     @ShellMethod(key = "head", value = "Envia requisicao HEAD (retorna apenas headers)")
     public String head(
             @ShellOption(help = "URL") String url,
             @ShellOption(value = "--call", defaultValue = "1",
-                    help = "Numero de chamadas sequenciais") int callCount) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.HEAD, url), callCount);
+                    help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
+                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+        return executeRequest(ApiRequest.of(null, HttpMethod.HEAD, url), callCount, outputFile);
     }
 
     @ShellMethod(key = "options", value = "Envia requisicao OPTIONS")
     public String options(
             @ShellOption(help = "URL") String url,
             @ShellOption(value = "--call", defaultValue = "1",
-                    help = "Numero de chamadas sequenciais") int callCount) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.OPTIONS, url), callCount);
+                    help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
+                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+        return executeRequest(ApiRequest.of(null, HttpMethod.OPTIONS, url), callCount, outputFile);
     }
 
     @ShellMethod(key = "send", value = "Envia request customizado (metodo, url, headers, body)")
@@ -238,7 +257,9 @@ public class ApiCommands {
             @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
-                    help = "Numero de chamadas sequenciais") int callCount) {
+                    help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
+                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.fromString(method), appendParams(url, params));
         if (headers != null) {
             for (var h : headers.split(";")) {
@@ -250,7 +271,7 @@ public class ApiCommands {
         }
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
-        return executeRequest(req, callCount);
+        return executeRequest(req, callCount, outputFile);
     }
 
     // ========== RESPONSE ===================================================
@@ -559,14 +580,18 @@ public class ApiCommands {
     // ========== FORMATTING =================================================
 
     private String executeRequest(ApiRequest request) {
-        return executeRequest(request, 1);
+        return executeRequest(request, 1, null);
     }
 
     private String executeRequest(ApiRequest request, int callCount) {
+        return executeRequest(request, callCount, null);
+    }
+
+    private String executeRequest(ApiRequest request, int callCount, String outputFile) {
         if (callCount <= 0) {
             return styled(RED, t("O valor de --call deve ser maior que 0.", "--call must be greater than 0."));
         }
-        if (callCount == 1) {
+        if (callCount == 1 && outputFile == null) {
             return executeSingleRequest(request);
         }
 
@@ -578,14 +603,18 @@ public class ApiCommands {
         int success = 0;
         int failed = 0;
         long totalMs = 0;
+        var responses = new ArrayList<Map<String, Object>>();
+        var startedAt = Instant.now().toString();
 
         for (int i = 1; i <= callCount; i++) {
             try {
                 var response = service.execute(request);
+                var executedRequest = service.getLastRequest() != null ? service.getLastRequest() : request;
                 boolean ok = response.statusCode() < 400;
                 if (ok) success++;
                 else failed++;
                 totalMs += response.duration().toMillis();
+                responses.add(buildResponseEntry(i, executedRequest, response, null));
 
                 var statusStyle = response.isSuccess() ? GREEN : (response.statusCode() < 500 ? YELLOW : RED);
                 sb.append(styled(ok ? GREEN : RED, "  " + (ok ? "+" : "x") + " "));
@@ -596,6 +625,7 @@ public class ApiCommands {
                 sb.append("\n");
             } catch (Exception e) {
                 failed++;
+                responses.add(buildResponseEntry(i, request, null, e.getMessage()));
                 sb.append(styled(RED, "  x "));
                 sb.append(styled(CYAN, String.format("#%-3d ", i)));
                 sb.append(styled(RED, t("erro", "error") + ": " + e.getMessage())).append("\n");
@@ -610,7 +640,87 @@ public class ApiCommands {
         sb.append(styled(DIM, "  |  "));
         sb.append(styled(BOLD, "  " + t("Media", "Average") + ": " + avgMs + "ms"));
         sb.append("\n");
+        if (outputFile != null) {
+            try {
+                writeBatchOutput(outputFile, request, callCount, success, failed, totalMs, startedAt, responses);
+                sb.append(styled(GREEN, "  " + t("Respostas salvas em: ", "Responses saved to: ") + outputFile)).append("\n");
+            } catch (IOException e) {
+                sb.append(styled(RED, "  " + t("Erro ao salvar output: ", "Error saving output: ") + e.getMessage())).append("\n");
+            }
+        }
         return sb.toString();
+    }
+
+    private Map<String, Object> buildResponseEntry(int index, ApiRequest request, ApiResponse response, String error) {
+        var entry = new LinkedHashMap<String, Object>();
+        entry.put("index", index);
+        entry.put("timestamp", Instant.now().toString());
+        entry.put("request", requestMap(request));
+        if (response != null) {
+            entry.put("success", response.statusCode() < 400);
+            entry.put("statusCode", response.statusCode());
+            entry.put("statusText", response.statusText());
+            entry.put("durationMs", response.duration().toMillis());
+            entry.put("size", response.size());
+            entry.put("contentType", response.contentType());
+            entry.put("headers", response.headers());
+            entry.put("body", response.body());
+            entry.put("error", null);
+        } else {
+            entry.put("success", false);
+            entry.put("statusCode", null);
+            entry.put("statusText", null);
+            entry.put("durationMs", null);
+            entry.put("size", null);
+            entry.put("contentType", null);
+            entry.put("headers", Map.of());
+            entry.put("body", null);
+            entry.put("error", error);
+        }
+        return entry;
+    }
+
+    private void writeBatchOutput(
+            String filePath,
+            ApiRequest request,
+            int callCount,
+            int success,
+            int failed,
+            long totalMs,
+            String startedAt,
+            List<Map<String, Object>> responses) throws IOException {
+        var payload = new LinkedHashMap<String, Object>();
+        payload.put("startedAt", startedAt);
+        payload.put("finishedAt", Instant.now().toString());
+        payload.put("calls", callCount);
+        payload.put("success", success);
+        payload.put("failed", failed);
+        payload.put("totalDurationMs", totalMs);
+        payload.put("averageDurationMs", callCount > 0 ? totalMs / callCount : 0);
+        payload.put("requestTemplate", requestMap(request));
+        payload.put("responses", responses);
+
+        var path = normalizeOutputPath(filePath);
+        if (path.getParent() != null) {
+            Files.createDirectories(path.getParent());
+        }
+        objectMapper.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), payload);
+    }
+
+    private Map<String, Object> requestMap(ApiRequest request) {
+        var map = new LinkedHashMap<String, Object>();
+        map.put("method", request.method().name());
+        map.put("url", request.url());
+        map.put("headers", request.headers());
+        map.put("body", request.body());
+        return map;
+    }
+
+    private Path normalizeOutputPath(String filePath) {
+        var normalized = filePath != null && filePath.startsWith("@")
+                ? filePath.substring(1)
+                : filePath;
+        return Path.of(normalized);
     }
 
     private String executeSingleRequest(ApiRequest request) {
