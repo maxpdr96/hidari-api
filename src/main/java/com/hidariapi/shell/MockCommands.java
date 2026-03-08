@@ -8,8 +8,6 @@ import com.hidariapi.service.ApiService;
 import com.hidariapi.service.LanguageService;
 import com.hidariapi.service.MockServerService;
 import com.hidariapi.util.JsonFormatter;
-import org.jline.utils.AttributedStringBuilder;
-import org.jline.utils.AttributedStyle;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
@@ -25,19 +23,7 @@ import java.util.LinkedHashMap;
  * Mock Server commands — creates fake APIs directly in the terminal.
  */
 @ShellComponent
-public class MockCommands {
-
-    private static final AttributedStyle BOLD = AttributedStyle.DEFAULT.bold();
-    private static final AttributedStyle DIM = AttributedStyle.DEFAULT.faint();
-    private static final AttributedStyle CYAN = AttributedStyle.DEFAULT.foreground(AttributedStyle.CYAN);
-    private static final AttributedStyle GREEN = AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN);
-    private static final AttributedStyle YELLOW = AttributedStyle.DEFAULT.foreground(AttributedStyle.YELLOW);
-    private static final AttributedStyle RED = AttributedStyle.DEFAULT.foreground(AttributedStyle.RED);
-    private static final AttributedStyle MAGENTA = AttributedStyle.DEFAULT.foreground(AttributedStyle.MAGENTA);
-    private static final AttributedStyle BOLD_CYAN = BOLD.foreground(AttributedStyle.CYAN);
-    private static final AttributedStyle BOLD_GREEN = BOLD.foreground(AttributedStyle.GREEN);
-    private static final AttributedStyle BOLD_RED = BOLD.foreground(AttributedStyle.RED);
-    private static final AttributedStyle BOLD_YELLOW = BOLD.foreground(AttributedStyle.YELLOW);
+public class MockCommands extends LocalizedSupport {
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm:ss")
             .withZone(ZoneId.systemDefault());
@@ -45,16 +31,13 @@ public class MockCommands {
     private final MockServerService mockService;
     private final ApiService apiService;
     private final JsonFormatter jsonFormatter;
-    private final LanguageService lang;
 
     public MockCommands(MockServerService mockService, ApiService apiService, JsonFormatter jsonFormatter, LanguageService lang) {
+        super(lang);
         this.mockService = mockService;
         this.apiService = apiService;
         this.jsonFormatter = jsonFormatter;
-        this.lang = lang;
     }
-
-    private String t(String pt, String en) { return lang.t(pt, en); }
 
     // ========== SERVER CONTROL =============================================
 
@@ -482,7 +465,7 @@ public class MockCommands {
         return body;
     }
 
-    private AttributedStyle methodColor(HttpMethod method) {
+    private org.jline.utils.AttributedStyle methodColor(HttpMethod method) {
         return switch (method) {
             case GET -> GREEN;
             case POST -> YELLOW;
@@ -493,22 +476,9 @@ public class MockCommands {
         };
     }
 
-    private AttributedStyle statusColor(int status) {
+    private org.jline.utils.AttributedStyle statusColor(int status) {
         if (status < 300) return GREEN;
         if (status < 400) return YELLOW;
         return RED;
-    }
-
-    private String styled(AttributedStyle style, String text) {
-        return new AttributedStringBuilder()
-                .style(style)
-                .append(text)
-                .toAttributedString()
-                .toAnsi();
-    }
-
-    private String truncate(String text, int max) {
-        if (text == null) return "";
-        return text.length() > max ? text.substring(0, max - 1) + "~" : text;
     }
 }

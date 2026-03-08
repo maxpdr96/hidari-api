@@ -1,6 +1,5 @@
 package com.hidariapi.shell;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hidariapi.model.*;
 import com.hidariapi.model.Collection;
 import com.hidariapi.model.Language;
@@ -10,15 +9,11 @@ import com.hidariapi.service.ApiService;
 import com.hidariapi.service.LanguageService;
 import com.hidariapi.util.CurlParser;
 import com.hidariapi.util.JsonFormatter;
-import org.jline.utils.AttributedStringBuilder;
-import org.jline.utils.AttributedStyle;
 import org.springframework.shell.standard.ShellComponent;
 import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
 
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
 import java.util.*;
 
@@ -26,44 +21,27 @@ import java.util.*;
  * Interactive commands for HidariApi — API tester in the terminal.
  */
 @ShellComponent
-public class ApiCommands {
-
-    private static final AttributedStyle BOLD = AttributedStyle.DEFAULT.bold();
-    private static final AttributedStyle DIM = AttributedStyle.DEFAULT.faint();
-    private static final AttributedStyle CYAN = AttributedStyle.DEFAULT.foreground(AttributedStyle.CYAN);
-    private static final AttributedStyle GREEN = AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN);
-    private static final AttributedStyle YELLOW = AttributedStyle.DEFAULT.foreground(AttributedStyle.YELLOW);
-    private static final AttributedStyle RED = AttributedStyle.DEFAULT.foreground(AttributedStyle.RED);
-    private static final AttributedStyle MAGENTA = AttributedStyle.DEFAULT.foreground(AttributedStyle.MAGENTA);
-    private static final AttributedStyle BOLD_CYAN = BOLD.foreground(AttributedStyle.CYAN);
-    private static final AttributedStyle BOLD_GREEN = BOLD.foreground(AttributedStyle.GREEN);
-    private static final AttributedStyle BOLD_RED = BOLD.foreground(AttributedStyle.RED);
-    private static final AttributedStyle BOLD_YELLOW = BOLD.foreground(AttributedStyle.YELLOW);
-    private static final AttributedStyle WHITE = AttributedStyle.DEFAULT.foreground(AttributedStyle.WHITE);
+public class ApiCommands extends LocalizedSupport {
 
     private final ApiService service;
     private final JsonFormatter jsonFormatter;
     private final CurlParser curlParser;
-    private final LanguageService lang;
     private final LocalizedHelpRenderer helpRenderer;
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final BatchOutputWriter batchOutputWriter;
 
     public ApiCommands(
             ApiService service,
             JsonFormatter jsonFormatter,
             CurlParser curlParser,
             LanguageService lang,
-            LocalizedHelpRenderer helpRenderer) {
+            LocalizedHelpRenderer helpRenderer,
+            BatchOutputWriter batchOutputWriter) {
+        super(lang);
         this.service = service;
         this.jsonFormatter = jsonFormatter;
         this.curlParser = curlParser;
-        this.lang = lang;
         this.helpRenderer = helpRenderer;
-    }
-
-    // Helper to delegate to LanguageService
-    private String t(String pt, String en) {
-        return lang.t(pt, en);
+        this.batchOutputWriter = batchOutputWriter;
     }
 
     // ========== LANGUAGE ===================================================
@@ -576,7 +554,7 @@ public class ApiCommands {
         sb.append("\n");
         if (outputFile != null) {
             try {
-                writeBatchOutput(outputFile, request, callCount, success, failed, totalMs, startedAt, responses);
+                batchOutputWriter.write(outputFile, request, callCount, success, failed, totalMs, startedAt, responses);
                 sb.append(styled(GREEN, "  " + t("Respostas salvas em: ", "Responses saved to: ") + outputFile)).append("\n");
             } catch (IOException e) {
                 sb.append(styled(RED, "  " + t("Erro ao salvar output: ", "Error saving output: ") + e.getMessage())).append("\n");
@@ -589,7 +567,12 @@ public class ApiCommands {
         var entry = new LinkedHashMap<String, Object>();
         entry.put("index", index);
         entry.put("timestamp", Instant.now().toString());
-        entry.put("request", requestMap(request));
+        var requestData = new LinkedHashMap<String, Object>();
+        requestData.put("method", request.method().name());
+        requestData.put("url", request.url());
+        requestData.put("headers", request.headers());
+        requestData.put("body", request.body());
+        entry.put("request", requestData);
         if (response != null) {
             entry.put("success", response.statusCode() < 400);
             entry.put("statusCode", response.statusCode());
@@ -612,49 +595,6 @@ public class ApiCommands {
             entry.put("error", error);
         }
         return entry;
-    }
-
-    private void writeBatchOutput(
-            String filePath,
-            ApiRequest request,
-            int callCount,
-            int success,
-            int failed,
-            long totalMs,
-            String startedAt,
-            List<Map<String, Object>> responses) throws IOException {
-        var payload = new LinkedHashMap<String, Object>();
-        payload.put("startedAt", startedAt);
-        payload.put("finishedAt", Instant.now().toString());
-        payload.put("calls", callCount);
-        payload.put("success", success);
-        payload.put("failed", failed);
-        payload.put("totalDurationMs", totalMs);
-        payload.put("averageDurationMs", callCount > 0 ? totalMs / callCount : 0);
-        payload.put("requestTemplate", requestMap(request));
-        payload.put("responses", responses);
-
-        var path = normalizeOutputPath(filePath);
-        if (path.getParent() != null) {
-            Files.createDirectories(path.getParent());
-        }
-        objectMapper.writerWithDefaultPrettyPrinter().writeValue(path.toFile(), payload);
-    }
-
-    private Map<String, Object> requestMap(ApiRequest request) {
-        var map = new LinkedHashMap<String, Object>();
-        map.put("method", request.method().name());
-        map.put("url", request.url());
-        map.put("headers", request.headers());
-        map.put("body", request.body());
-        return map;
-    }
-
-    private Path normalizeOutputPath(String filePath) {
-        var normalized = filePath != null && filePath.startsWith("@")
-                ? filePath.substring(1)
-                : filePath;
-        return Path.of(normalized);
     }
 
     private String executeSingleRequest(ApiRequest request) {
@@ -873,19 +813,6 @@ public class ApiCommands {
     }
 
     // ========== HELPERS ====================================================
-
-    private String styled(AttributedStyle style, String text) {
-        return new AttributedStringBuilder()
-                .style(style)
-                .append(text)
-                .toAttributedString()
-                .toAnsi();
-    }
-
-    private String truncate(String text, int max) {
-        if (text == null) return "";
-        return text.length() > max ? text.substring(0, max - 1) + "~" : text;
-    }
 
     /** Appends query params to URL. Params in format "key=value&key2=value2". */
     private String appendParams(String url, String params) {

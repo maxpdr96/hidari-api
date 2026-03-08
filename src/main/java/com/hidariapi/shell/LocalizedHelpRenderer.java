@@ -1,8 +1,6 @@
 package com.hidariapi.shell;
 
 import com.hidariapi.service.LanguageService;
-import org.jline.utils.AttributedStringBuilder;
-import org.jline.utils.AttributedStyle;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -11,19 +9,12 @@ import java.util.List;
  * Builds the translated help text shown by the custom help command.
  */
 @Component
-public class LocalizedHelpRenderer {
+public class LocalizedHelpRenderer extends LocalizedSupport {
 
-    private static final AttributedStyle DIM = AttributedStyle.DEFAULT.faint();
-    private static final AttributedStyle CYAN = AttributedStyle.DEFAULT.foreground(AttributedStyle.CYAN);
-    private static final AttributedStyle GREEN = AttributedStyle.DEFAULT.foreground(AttributedStyle.GREEN);
-    private static final AttributedStyle BOLD = AttributedStyle.DEFAULT.bold();
-    private static final AttributedStyle BOLD_CYAN = BOLD.foreground(AttributedStyle.CYAN);
-
-    private final LanguageService lang;
     private final List<HelpSection> sections;
 
     public LocalizedHelpRenderer(LanguageService lang) {
-        this.lang = lang;
+        super(lang);
         this.sections = buildSections();
     }
 
@@ -46,18 +37,6 @@ public class LocalizedHelpRenderer {
         }
         sb.append("\n");
         return sb.toString();
-    }
-
-    private String t(String pt, String en) {
-        return lang.t(pt, en);
-    }
-
-    private String styled(AttributedStyle style, String text) {
-        return new AttributedStringBuilder()
-                .style(style)
-                .append(text)
-                .toAttributedString()
-                .toAnsi();
     }
 
     private List<HelpSection> buildSections() {
