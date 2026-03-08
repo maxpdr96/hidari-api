@@ -2,6 +2,8 @@ package com.hidariapi.shell;
 
 import com.hidariapi.model.HttpMethod;
 import com.hidariapi.model.MockRoute;
+import com.hidariapi.shell.completion.MockRouteIndexValueProvider;
+import com.hidariapi.shell.completion.MockRoutePathValueProvider;
 import com.hidariapi.service.ApiService;
 import com.hidariapi.service.LanguageService;
 import com.hidariapi.service.MockServerService;
@@ -101,7 +103,7 @@ public class MockCommands {
     @ShellMethod(key = "mock-add", value = "Adiciona uma rota ao mock server")
     public String mockAdd(
             @ShellOption(help = "Metodo HTTP (GET, POST, PUT, DELETE, etc.)") String method,
-            @ShellOption(help = "Path da rota (ex: /api/users, /api/users/{id})") String path,
+            @ShellOption(help = "Path da rota (ex: /api/users, /api/users/{id})", valueProvider = MockRoutePathValueProvider.class) String path,
             @ShellOption(value = "--status", defaultValue = "200", help = "Status code da resposta") int status,
             @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
                     help = "Body da resposta (use @arquivo.json para ler de arquivo)") String body,
@@ -131,7 +133,7 @@ public class MockCommands {
     @ShellMethod(key = "mock-add-json", value = "Adiciona rota que retorna JSON (atalho)")
     public String mockAddJson(
             @ShellOption(help = "Metodo HTTP") String method,
-            @ShellOption(help = "Path da rota") String path,
+            @ShellOption(help = "Path da rota", valueProvider = MockRoutePathValueProvider.class) String path,
             @ShellOption(value = "--body", help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
             @ShellOption(value = "--status", defaultValue = "200", help = "Status code") int status,
             @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Descricao") String desc) {
@@ -155,7 +157,7 @@ public class MockCommands {
 
     @ShellMethod(key = "mock-add-crud", value = "Cria rotas CRUD completas para um recurso")
     public String mockAddCrud(
-            @ShellOption(help = "Path base do recurso (ex: /api/users)") String basePath,
+            @ShellOption(help = "Path base do recurso (ex: /api/users)", valueProvider = MockRoutePathValueProvider.class) String basePath,
             @ShellOption(value = "--list-body", defaultValue = "[]",
                     help = "Body do GET (lista)") String listBody,
             @ShellOption(value = "--item-body", defaultValue = "{}",
@@ -191,7 +193,7 @@ public class MockCommands {
 
     @ShellMethod(key = "mock-from-response", value = "Cria rota mock a partir da ultima resposta recebida")
     public String mockFromResponse(
-            @ShellOption(help = "Path da rota no mock (ex: /api/users)") String path,
+            @ShellOption(help = "Path da rota no mock (ex: /api/users)", valueProvider = MockRoutePathValueProvider.class) String path,
             @ShellOption(value = "--method", defaultValue = "GET", help = "Metodo HTTP") String method) {
 
         var lastResponse = apiService.getLastResponse();
@@ -233,7 +235,7 @@ public class MockCommands {
     }
 
     @ShellMethod(key = "mock-show", value = "Mostra detalhes de uma rota")
-    public String mockShow(@ShellOption(help = "Indice da rota (1-based)") int index) {
+    public String mockShow(@ShellOption(help = "Indice da rota (1-based)", valueProvider = MockRouteIndexValueProvider.class) int index) {
         var route = mockService.getRoute(index);
         if (route.isEmpty()) return styled(RED, t("Indice invalido.", "Invalid index."));
         return formatRouteDetail(index, route.get());
@@ -241,7 +243,7 @@ public class MockCommands {
 
     @ShellMethod(key = "mock-edit", value = "Edita uma rota existente (status, body, header, delay)")
     public String mockEdit(
-            @ShellOption(help = "Indice da rota (1-based)") int index,
+            @ShellOption(help = "Indice da rota (1-based)", valueProvider = MockRouteIndexValueProvider.class) int index,
             @ShellOption(value = "--status", defaultValue = "-1", help = "Novo status code") int status,
             @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
                     help = "Novo body (use @arquivo.json para ler de arquivo)") String body,
@@ -320,7 +322,7 @@ public class MockCommands {
     }
 
     @ShellMethod(key = "mock-rm", value = "Remove uma rota do mock server")
-    public String mockRm(@ShellOption(help = "Indice da rota (1-based)") int index) {
+    public String mockRm(@ShellOption(help = "Indice da rota (1-based)", valueProvider = MockRouteIndexValueProvider.class) int index) {
         if (mockService.removeRoute(index)) {
             return styled(GREEN, t("Rota removida.", "Route removed."));
         }

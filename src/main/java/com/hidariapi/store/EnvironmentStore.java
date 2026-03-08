@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.hidariapi.model.Environment;
+import com.hidariapi.util.AppPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -14,15 +15,14 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Persiste ambientes (variaveis) em {@code ~/.config/hidariapi/environments.json}.
+ * Persiste ambientes (variaveis) no diretório de config da aplicação.
  */
 @Component
 public class EnvironmentStore {
 
     private static final Logger log = LoggerFactory.getLogger(EnvironmentStore.class);
 
-    private static final Path CONFIG_DIR = Path.of(
-            System.getProperty("user.home"), ".config", "hidariapi");
+    private static final Path CONFIG_DIR = AppPaths.configDir();
     private static final Path FILE = CONFIG_DIR.resolve("environments.json");
 
     private final ObjectMapper mapper;

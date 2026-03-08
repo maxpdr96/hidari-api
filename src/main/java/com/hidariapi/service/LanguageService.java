@@ -1,6 +1,7 @@
 package com.hidariapi.service;
 
 import com.hidariapi.model.Language;
+import com.hidariapi.util.AppPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -10,15 +11,14 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 
 /**
- * Manages the current display language. Persists the choice in ~/.config/hidariapi/language.
+ * Manages the current display language.
  */
 @Service
 public class LanguageService {
 
     private static final Logger log = LoggerFactory.getLogger(LanguageService.class);
 
-    private static final Path CONFIG_DIR = Path.of(
-            System.getProperty("user.home"), ".config", "hidariapi");
+    private static final Path CONFIG_DIR = AppPaths.configDir();
     private static final Path FILE = CONFIG_DIR.resolve("language");
 
     private Language current;

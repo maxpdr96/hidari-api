@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hidariapi.model.Collection;
+import com.hidariapi.util.AppPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -15,15 +16,14 @@ import java.nio.file.Path;
 import java.util.*;
 
 /**
- * Persiste colecoes de requests em {@code ~/.config/hidariapi/collections.json}.
+ * Persiste colecoes de requests no diretório de config da aplicação.
  */
 @Component
 public class CollectionStore {
 
     private static final Logger log = LoggerFactory.getLogger(CollectionStore.class);
 
-    private static final Path CONFIG_DIR = Path.of(
-            System.getProperty("user.home"), ".config", "hidariapi");
+    private static final Path CONFIG_DIR = AppPaths.configDir();
     private static final Path FILE = CONFIG_DIR.resolve("collections.json");
 
     private final ObjectMapper mapper;

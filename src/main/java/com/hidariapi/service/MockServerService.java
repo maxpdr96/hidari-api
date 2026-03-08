@@ -2,6 +2,8 @@ package com.hidariapi.service;
 
 import com.hidariapi.model.MockRoute;
 import com.hidariapi.store.MockStore;
+import com.hidariapi.util.BrazilianDataGenerator;
+import com.hidariapi.util.TemplateResolver;
 import com.sun.net.httpserver.HttpExchange;
 import com.sun.net.httpserver.HttpServer;
 import org.slf4j.Logger;
@@ -10,11 +12,17 @@ import org.springframework.stereotype.Service;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.Executors;
 
 /**
@@ -148,6 +156,7 @@ public class MockServerService {
 
         if (match.isPresent()) {
             var route = match.get();
+            var context = buildTemplateContext(exchange, route, path);
 
             // Delay simulado
             if (route.delay() > 0) {
@@ -156,11 +165,12 @@ public class MockServerService {
 
             // Headers
             for (var h : route.headers().entrySet()) {
-                exchange.getResponseHeaders().add(h.getKey(), h.getValue());
+                exchange.getResponseHeaders().add(h.getKey(), resolveTemplate(h.getValue(), context));
             }
 
             // Body
-            var body = route.body() != null ? route.body().getBytes(StandardCharsets.UTF_8) : new byte[0];
+            var bodyText = resolveTemplate(route.body(), context);
+            var body = bodyText != null ? bodyText.getBytes(StandardCharsets.UTF_8) : new byte[0];
             exchange.sendResponseHeaders(route.statusCode(), body.length > 0 ? body.length : -1);
             if (body.length > 0) {
                 exchange.getResponseBody().write(body);
@@ -190,4 +200,90 @@ public class MockServerService {
             requestLogs.removeFirst();
         }
     }
+
+    private TemplateContext buildTemplateContext(HttpExchange exchange, MockRoute route, String requestPath) {
+        return new TemplateContext(
+                extractPathParams(route.path(), requestPath),
+                extractQueryParams(exchange),
+                Instant.now(),
+                System.currentTimeMillis(),
+                new HashMap<>()
+        );
+    }
+
+    private String resolveTemplate(String text, TemplateContext context) {
+        return TemplateResolver.resolve(text, context.cache(), expr -> resolveTemplateExpression(expr, context));
+    }
+
+    private String resolveTemplateExpression(String expr, TemplateContext context) {
+        return switch (expr) {
+            case "$timestamp" -> String.valueOf(context.nowMillis());
+            case "$isoTimestamp", "faker.timestamp" -> context.now().toString();
+            case "$uuid", "faker.uuid" -> UUID.randomUUID().toString();
+            case "$cpf", "faker.cpf" -> BrazilianDataGenerator.randomCpf();
+            case "faker.int" -> String.valueOf(ThreadLocalRandom.current().nextInt(0, 10_000));
+            case "faker.bool" -> String.valueOf(ThreadLocalRandom.current().nextBoolean());
+            default -> resolveTemplateStructuredExpression(expr, context);
+        };
+    }
+
+    private String resolveTemplateStructuredExpression(String expr, TemplateContext context) {
+        if (expr.startsWith("param.")) {
+            return context.pathParams().get(expr.substring("param.".length()));
+        }
+        if (expr.startsWith("query.")) {
+            return context.queryParams().get(expr.substring("query.".length()));
+        }
+        if ("faker.word".equals(expr)) {
+            var words = List.of("alpha", "beta", "gamma", "delta", "omega", "hidari");
+            return words.get(ThreadLocalRandom.current().nextInt(words.size()));
+        }
+        return null;
+    }
+
+    private Map<String, String> extractPathParams(String routePath, String requestPath) {
+        var params = new LinkedHashMap<String, String>();
+        var routeParts = routePath.split("/");
+        var reqParts = requestPath.split("\\?")[0].split("/");
+
+        if (routeParts.length != reqParts.length) return params;
+
+        for (int i = 0; i < routeParts.length; i++) {
+            var part = routeParts[i];
+            if (part.startsWith("{") && part.endsWith("}") && part.length() > 2) {
+                var key = part.substring(1, part.length() - 1);
+                params.put(key, urlDecode(reqParts[i]));
+            }
+        }
+        return params;
+    }
+
+    private Map<String, String> extractQueryParams(HttpExchange exchange) {
+        var params = new LinkedHashMap<String, String>();
+        var rawQuery = exchange.getRequestURI().getRawQuery();
+        if (rawQuery == null || rawQuery.isBlank()) return params;
+
+        for (var pair : rawQuery.split("&")) {
+            if (pair.isBlank()) continue;
+            var idx = pair.indexOf('=');
+            if (idx >= 0) {
+                params.putIfAbsent(urlDecode(pair.substring(0, idx)), urlDecode(pair.substring(idx + 1)));
+            } else {
+                params.putIfAbsent(urlDecode(pair), "");
+            }
+        }
+        return params;
+    }
+
+    private String urlDecode(String value) {
+        return URLDecoder.decode(value, StandardCharsets.UTF_8);
+    }
+
+    private record TemplateContext(
+            Map<String, String> pathParams,
+            Map<String, String> queryParams,
+            Instant now,
+            long nowMillis,
+            Map<String, String> cache
+    ) {}
 }

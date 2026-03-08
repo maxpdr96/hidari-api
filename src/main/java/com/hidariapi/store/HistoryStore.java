@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.hidariapi.model.SavedRequest;
+import com.hidariapi.util.AppPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -18,7 +19,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * Persiste historico de requests em {@code ~/.config/hidariapi/history.json}.
+ * Persiste historico de requests no diretório de config da aplicação.
  * Mantém no maximo {@code maxHistory} entradas (FIFO).
  */
 @Component
@@ -26,8 +27,7 @@ public class HistoryStore {
 
     private static final Logger log = LoggerFactory.getLogger(HistoryStore.class);
 
-    private static final Path CONFIG_DIR = Path.of(
-            System.getProperty("user.home"), ".config", "hidariapi");
+    private static final Path CONFIG_DIR = AppPaths.configDir();
     private static final Path FILE = CONFIG_DIR.resolve("history.json");
 
     private final ObjectMapper mapper;

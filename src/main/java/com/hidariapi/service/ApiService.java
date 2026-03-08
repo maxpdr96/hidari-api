@@ -1,9 +1,12 @@
 package com.hidariapi.service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hidariapi.model.*;
+import com.hidariapi.util.BrazilianDataGenerator;
 import com.hidariapi.store.CollectionStore;
 import com.hidariapi.store.EnvironmentStore;
 import com.hidariapi.store.HistoryStore;
+import com.hidariapi.util.TemplateResolver;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -15,11 +18,14 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Servico principal que executa requests HTTP e gerencia sessao.
@@ -32,6 +38,7 @@ public class ApiService {
     private final HistoryStore historyStore;
     private final EnvironmentStore environmentStore;
     private final int timeoutSeconds;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     /** Headers padrao aplicados a todo request. */
     private final Map<String, String> defaultHeaders = new LinkedHashMap<>();
@@ -64,7 +71,8 @@ public class ApiService {
 
     /** Executa um request HTTP. */
     public ApiResponse execute(ApiRequest apiRequest) throws IOException, InterruptedException {
-        var resolved = resolveVariables(apiRequest);
+        var context = new TemplateContext(activeEnvironment, lastResponse);
+        var resolved = resolveVariables(apiRequest, context);
         lastRequest = resolved;
 
         var builder = HttpRequest.newBuilder()
@@ -73,7 +81,8 @@ public class ApiService {
 
         // Default headers
         for (var entry : defaultHeaders.entrySet()) {
-            builder.header(entry.getKey(), entry.getValue());
+            var value = resolveText(entry.getValue(), context);
+            builder.header(entry.getKey(), value);
         }
 
         // Request headers
@@ -320,16 +329,106 @@ public class ApiService {
 
     // ── Helpers ──────────────────────────────────────────────────────────────
 
-    /** Resolve variaveis {{key}} usando o ambiente ativo. */
-    private ApiRequest resolveVariables(ApiRequest request) {
-        if (activeEnvironment == null) return request;
-
-        var url = activeEnvironment.resolve(request.url());
-        var body = activeEnvironment.resolve(request.body());
+    /** Resolve variaveis de ambiente e runtime em URL/headers/body. */
+    private ApiRequest resolveVariables(ApiRequest request, TemplateContext context) {
+        var url = resolveText(request.url(), context);
+        var body = resolveText(request.body(), context);
         var headers = new LinkedHashMap<String, String>();
         for (var entry : request.headers().entrySet()) {
-            headers.put(entry.getKey(), activeEnvironment.resolve(entry.getValue()));
+            headers.put(entry.getKey(), resolveText(entry.getValue(), context));
         }
         return new ApiRequest(request.name(), request.method(), url, headers, body);
+    }
+
+    private String resolveText(String text, TemplateContext context) {
+        return TemplateResolver.resolve(text, context.cache(), expr -> resolveExpression(expr, context));
+    }
+
+    private String resolveExpression(String expr, TemplateContext context) {
+        return switch (expr) {
+            case "$timestamp" -> String.valueOf(context.nowMillis());
+            case "$isoTimestamp" -> context.now().toString();
+            case "$uuid" -> UUID.randomUUID().toString();
+            case "$cpf" -> BrazilianDataGenerator.randomCpf();
+            case "last.status" -> context.lastResponse() != null ? String.valueOf(context.lastResponse().statusCode()) : null;
+            case "last.body" -> context.lastResponse() != null ? context.lastResponse().body() : null;
+            default -> resolveStructuredExpression(expr, context);
+        };
+    }
+
+    private String resolveStructuredExpression(String expr, TemplateContext context) {
+        if (expr.startsWith("env.")) {
+            return context.environment() != null ? context.environment().variables().get(expr.substring("env.".length())) : null;
+        }
+
+        if (context.environment() != null && context.environment().variables().containsKey(expr)) {
+            return context.environment().variables().get(expr);
+        }
+
+        if (expr.startsWith("last.header.") && context.lastResponse() != null) {
+            var target = expr.substring("last.header.".length());
+            for (var h : context.lastResponse().headers().entrySet()) {
+                if (h.getKey().equalsIgnoreCase(target)) {
+                    return h.getValue();
+                }
+            }
+            return null;
+        }
+
+        if (expr.startsWith("last.body.") && context.lastResponse() != null) {
+            var jsonPath = expr.substring("last.body.".length());
+            return readJsonPath(context.lastResponse().body(), jsonPath);
+        }
+
+        return null;
+    }
+
+    private String readJsonPath(String json, String path) {
+        if (json == null || json.isBlank() || path == null || path.isBlank()) return null;
+        try {
+            var node = objectMapper.readTree(json);
+            for (var segment : path.split("\\.")) {
+                if (segment.isBlank() || node == null) return null;
+                node = navigateSegment(node, segment);
+            }
+            if (node == null || node.isMissingNode() || node.isNull()) return null;
+            return node.isValueNode() ? node.asText() : node.toString();
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    private com.fasterxml.jackson.databind.JsonNode navigateSegment(com.fasterxml.jackson.databind.JsonNode node, String segment) {
+        int cursor = 0;
+        if (!segment.startsWith("[")) {
+            int bracket = segment.indexOf('[');
+            String field = bracket >= 0 ? segment.substring(0, bracket) : segment;
+            node = node.get(field);
+            if (node == null) return null;
+            cursor = field.length();
+        }
+
+        while (cursor < segment.length()) {
+            if (segment.charAt(cursor) != '[') return null;
+            int end = segment.indexOf(']', cursor);
+            if (end < 0) return null;
+            int index = Integer.parseInt(segment.substring(cursor + 1, end));
+            node = node.get(index);
+            if (node == null) return null;
+            cursor = end + 1;
+        }
+        return node;
+    }
+
+    private record TemplateContext(
+            Environment environment,
+            ApiResponse lastResponse,
+            Instant now,
+            long nowMillis,
+            Map<String, String> cache
+    ) {
+        private TemplateContext(Environment environment, ApiResponse lastResponse) {
+            this(environment, lastResponse, Instant.now(), System.currentTimeMillis(), new HashMap<>());
+        }
     }
 }

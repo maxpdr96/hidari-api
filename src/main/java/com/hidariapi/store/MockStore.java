@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.hidariapi.model.MockRoute;
+import com.hidariapi.util.AppPaths;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -16,15 +17,14 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * Persiste rotas do mock server em {@code ~/.config/hidariapi/mocks.json}.
+ * Persiste rotas do mock server no diretório de config da aplicação.
  */
 @Component
 public class MockStore {
 
     private static final Logger log = LoggerFactory.getLogger(MockStore.class);
 
-    private static final Path CONFIG_DIR = Path.of(
-            System.getProperty("user.home"), ".config", "hidariapi");
+    private static final Path CONFIG_DIR = AppPaths.configDir();
     private static final Path FILE = CONFIG_DIR.resolve("mocks.json");
 
     private final ObjectMapper mapper;

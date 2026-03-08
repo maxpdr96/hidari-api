@@ -3,6 +3,8 @@ package com.hidariapi.shell;
 import com.hidariapi.model.*;
 import com.hidariapi.model.Collection;
 import com.hidariapi.model.Language;
+import com.hidariapi.shell.completion.CollectionNameValueProvider;
+import com.hidariapi.shell.completion.EnvironmentNameValueProvider;
 import com.hidariapi.service.ApiService;
 import com.hidariapi.service.LanguageService;
 import com.hidariapi.util.CurlParser;
@@ -118,6 +120,12 @@ public class ApiCommands {
         appendHelpItem(sb, "replay <indice>", t("Reexecuta request do historico.", "Replays history request."));
         appendHelpItem(sb, "clear-history", t("Limpa historico.", "Clears history."));
 
+        appendHelpSection(sb, t("Templates", "Templates"));
+        appendHelpItem(sb, "{{$timestamp}} / {{$isoTimestamp}} / {{$uuid}} / {{$cpf}}", t("Variaveis dinamicas em URL/header/body.", "Dynamic variables in URL/header/body."));
+        appendHelpItem(sb, "{{chave}} ou {{env.chave}}", t("Variavel do ambiente ativo.", "Variable from active environment."));
+        appendHelpItem(sb, "{{last.status}} / {{last.header.content-type}}", t("Usa dados da ultima resposta.", "Uses data from last response."));
+        appendHelpItem(sb, "{{last.body.user.id}}", t("Extrai campo JSON da ultima resposta.", "Extracts JSON field from last response."));
+
         appendHelpSection(sb, t("Mock Server", "Mock Server"));
         appendHelpItem(sb, "mock-start [--port 8089] / mock-stop / mock-status", t("Controla servidor mock.", "Controls mock server."));
         appendHelpItem(sb, "mock-add <method> <path> [--status --body --header --delay --desc]", t("Adiciona rota.", "Adds route."));
@@ -127,6 +135,7 @@ public class ApiCommands {
         appendHelpItem(sb, "mock-list / mock-show <i> / mock-edit <i> ...", t("Lista, mostra e edita rotas.", "Lists, shows and edits routes."));
         appendHelpItem(sb, "mock-rm <i> / mock-clear", t("Remove rota(s).", "Removes route(s)."));
         appendHelpItem(sb, "mock-logs [--limit N] / mock-clear-logs", t("Mostra/limpa logs do mock.", "Shows/clears mock logs."));
+        appendHelpItem(sb, "{{param.id}} / {{query.page}} / {{faker.uuid}} / {{faker.cpf}}", t("Templates dinamicos para body/headers mock.", "Dynamic templates for mock body/headers."));
 
         sb.append("\n");
         return sb.toString();
@@ -364,7 +373,7 @@ public class ApiCommands {
 
     @ShellMethod(key = "env-set", value = "Define variavel no ambiente")
     public String envSet(
-            @ShellOption(help = "Nome do ambiente") String envName,
+            @ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String envName,
             @ShellOption(help = "Nome da variavel") String key,
             @ShellOption(help = "Valor") String value) {
         var env = service.getEnvironment(envName);
@@ -375,7 +384,7 @@ public class ApiCommands {
 
     @ShellMethod(key = "env-unset", value = "Remove variavel de um ambiente")
     public String envUnset(
-            @ShellOption(help = "Nome do ambiente") String envName,
+            @ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String envName,
             @ShellOption(help = "Nome da variavel") String key) {
         var env = service.getEnvironment(envName);
         if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + envName);
@@ -384,7 +393,7 @@ public class ApiCommands {
     }
 
     @ShellMethod(key = "env-use", value = "Ativa um ambiente (variaveis {{key}} serao substituidas)")
-    public String envUse(@ShellOption(help = "Nome do ambiente") String name) {
+    public String envUse(@ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String name) {
         var env = service.getEnvironment(name);
         if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + name);
         service.setActiveEnvironment(name);
@@ -405,14 +414,14 @@ public class ApiCommands {
     }
 
     @ShellMethod(key = "env-show", value = "Mostra variaveis de um ambiente")
-    public String envShow(@ShellOption(help = "Nome do ambiente") String name) {
+    public String envShow(@ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String name) {
         var env = service.getEnvironment(name);
         if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + name);
         return formatEnvironmentDetail(env.get());
     }
 
     @ShellMethod(key = "env-rm", value = "Remove um ambiente")
-    public String envRm(@ShellOption(help = "Nome do ambiente") String name) {
+    public String envRm(@ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String name) {
         if (service.removeEnvironment(name)) {
             return styled(GREEN, t("Ambiente removido: ", "Environment removed: ") + name);
         }
@@ -429,7 +438,7 @@ public class ApiCommands {
 
     @ShellMethod(key = "col-add", value = "Salva o ultimo request em uma colecao")
     public String colAdd(
-            @ShellOption(help = "Nome da colecao") String colName,
+            @ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String colName,
             @ShellOption(help = "Nome para o request") String reqName) {
         var req = service.getLastRequest();
         if (req == null) return styled(RED, t("Nenhum request para salvar. Envie um request primeiro.", "No request to save. Send a request first."));
@@ -442,7 +451,7 @@ public class ApiCommands {
 
     @ShellMethod(key = "col-run", value = "Executa um request de uma colecao")
     public String colRun(
-            @ShellOption(help = "Nome da colecao") String colName,
+            @ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String colName,
             @ShellOption(help = "Indice do request (1-based)") int index) {
         var col = service.getCollection(colName);
         if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
@@ -455,7 +464,7 @@ public class ApiCommands {
     }
 
     @ShellMethod(key = "col-show", value = "Mostra requests de uma colecao")
-    public String colShow(@ShellOption(help = "Nome da colecao") String name) {
+    public String colShow(@ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String name) {
         var col = service.getCollection(name);
         if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + name);
         return formatCollectionDetail(col.get());
@@ -463,7 +472,7 @@ public class ApiCommands {
 
     @ShellMethod(key = "col-rm-req", value = "Remove um request de uma colecao")
     public String colRmReq(
-            @ShellOption(help = "Nome da colecao") String colName,
+            @ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String colName,
             @ShellOption(help = "Indice do request (1-based)") int index) {
         var col = service.getCollection(colName);
         if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
@@ -483,7 +492,7 @@ public class ApiCommands {
     }
 
     @ShellMethod(key = "col-run-all", value = "Executa todos os requests de uma colecao (smoke test)")
-    public String colRunAll(@ShellOption(help = "Nome da colecao") String colName) {
+    public String colRunAll(@ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String colName) {
         var col = service.getCollection(colName);
         if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
         if (col.get().requests().isEmpty()) return styled(YELLOW, t("Colecao vazia.", "Empty collection."));
@@ -499,7 +508,7 @@ public class ApiCommands {
     }
 
     @ShellMethod(key = "col-rm", value = "Remove uma colecao")
-    public String colRm(@ShellOption(help = "Nome da colecao") String name) {
+    public String colRm(@ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String name) {
         if (service.removeCollection(name)) {
             return styled(GREEN, t("Colecao removida: ", "Collection removed: ") + name);
         }
