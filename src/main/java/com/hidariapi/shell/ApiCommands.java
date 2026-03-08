@@ -2,7 +2,9 @@ package com.hidariapi.shell;
 
 import com.hidariapi.model.*;
 import com.hidariapi.model.Collection;
+import com.hidariapi.model.Language;
 import com.hidariapi.service.ApiService;
+import com.hidariapi.service.LanguageService;
 import com.hidariapi.util.CurlParser;
 import com.hidariapi.util.JsonFormatter;
 import org.jline.utils.AttributedStringBuilder;
@@ -15,7 +17,7 @@ import java.io.IOException;
 import java.util.*;
 
 /**
- * Comandos interativos do HidariApi — testador de APIs no terminal.
+ * Interactive commands for HidariApi — API tester in the terminal.
  */
 @ShellComponent
 public class ApiCommands {
@@ -36,11 +38,98 @@ public class ApiCommands {
     private final ApiService service;
     private final JsonFormatter jsonFormatter;
     private final CurlParser curlParser;
+    private final LanguageService lang;
 
-    public ApiCommands(ApiService service, JsonFormatter jsonFormatter, CurlParser curlParser) {
+    public ApiCommands(ApiService service, JsonFormatter jsonFormatter, CurlParser curlParser, LanguageService lang) {
         this.service = service;
         this.jsonFormatter = jsonFormatter;
         this.curlParser = curlParser;
+        this.lang = lang;
+    }
+
+    // Helper to delegate to LanguageService
+    private String t(String pt, String en) {
+        return lang.t(pt, en);
+    }
+
+    // ========== LANGUAGE ===================================================
+
+    @ShellMethod(key = "language", value = "Switch display language (pt/en)")
+    public String language(@ShellOption(help = "Language: pt or en") String lang) {
+        var language = Language.fromString(lang);
+        this.lang.setCurrent(language);
+        return styled(GREEN, t("Idioma alterado para: " + language, "Language changed to: " + language));
+    }
+
+    @ShellMethod(key = "help", value = "Show translated help")
+    public String help() {
+        var sb = new StringBuilder();
+        sb.append(styled(BOLD_CYAN, "\n  Hidari API - " + t("Ajuda", "Help") + "\n\n"));
+        sb.append(styled(DIM, "  " + t("Idioma atual", "Current language") + ": "))
+                .append(styled(GREEN, lang.getCurrent().name().toLowerCase()))
+                .append("\n");
+        sb.append(styled(DIM, "  " + t("Dica", "Tip") + ": "))
+                .append(t("use 'language pt' ou 'language eng' para trocar.", "use 'language pt' or 'language eng' to switch."))
+                .append("\n");
+
+        appendHelpSection(sb, t("Requisicoes HTTP", "HTTP Requests"));
+        appendHelpItem(sb, "get <url> [--param k=v&a=b]", t("Envia GET.", "Sends GET."));
+        appendHelpItem(sb, "post <url> --body '{...}' [--param ...]", t("Envia POST JSON.", "Sends JSON POST."));
+        appendHelpItem(sb, "put <url> --body '{...}' [--param ...]", t("Envia PUT JSON.", "Sends JSON PUT."));
+        appendHelpItem(sb, "patch <url> --body '{...}' [--param ...]", t("Envia PATCH JSON.", "Sends JSON PATCH."));
+        appendHelpItem(sb, "delete <url> [--param ...]", t("Envia DELETE.", "Sends DELETE."));
+        appendHelpItem(sb, "head <url>", t("Envia HEAD.", "Sends HEAD."));
+        appendHelpItem(sb, "options <url>", t("Envia OPTIONS.", "Sends OPTIONS."));
+        appendHelpItem(sb, "send <method> <url> [--header ...] [--body ...]", t("Request customizado.", "Custom request."));
+
+        appendHelpSection(sb, t("Resposta", "Response"));
+        appendHelpItem(sb, "response", t("Mostra a resposta completa.", "Shows full response."));
+        appendHelpItem(sb, "body", t("Mostra apenas o body.", "Shows only the body."));
+        appendHelpItem(sb, "response-headers", t("Mostra headers da resposta.", "Shows response headers."));
+        appendHelpItem(sb, "curl", t("Gera cURL do ultimo request.", "Generates cURL from last request."));
+        appendHelpItem(sb, "import-curl \"curl ...\" [--dry-run]", t("Importa e executa cURL.", "Imports and executes cURL."));
+        appendHelpItem(sb, "save-response <arquivo>", t("Salva body em arquivo.", "Saves body to file."));
+
+        appendHelpSection(sb, t("Headers Padrao", "Default Headers"));
+        appendHelpItem(sb, "set-header <key> <value>", t("Define header padrao.", "Sets default header."));
+        appendHelpItem(sb, "unset-header <key>", t("Remove header padrao.", "Removes default header."));
+        appendHelpItem(sb, "headers", t("Lista headers padrao.", "Lists default headers."));
+        appendHelpItem(sb, "clear-headers", t("Limpa headers padrao.", "Clears default headers."));
+        appendHelpItem(sb, "bearer <token>", t("Define Authorization Bearer.", "Sets Authorization Bearer."));
+
+        appendHelpSection(sb, t("Ambientes", "Environments"));
+        appendHelpItem(sb, "env-create <nome>", t("Cria ambiente.", "Creates environment."));
+        appendHelpItem(sb, "env-set <env> <key> <value>", t("Define variavel.", "Sets variable."));
+        appendHelpItem(sb, "env-unset <env> <key>", t("Remove variavel.", "Removes variable."));
+        appendHelpItem(sb, "env-use <nome>", t("Ativa ambiente.", "Activates environment."));
+        appendHelpItem(sb, "env-clear", t("Desativa ambiente.", "Deactivates environment."));
+        appendHelpItem(sb, "envs / env-show <nome> / env-rm <nome>", t("Lista, mostra e remove ambientes.", "Lists, shows and removes environments."));
+
+        appendHelpSection(sb, t("Colecoes", "Collections"));
+        appendHelpItem(sb, "col-create <nome>", t("Cria colecao.", "Creates collection."));
+        appendHelpItem(sb, "col-add <colecao> <nomeRequest>", t("Salva ultimo request.", "Saves last request."));
+        appendHelpItem(sb, "col-show <colecao> / cols", t("Mostra/lista colecoes.", "Shows/lists collections."));
+        appendHelpItem(sb, "col-run <colecao> <indice>", t("Executa request salvo.", "Runs saved request."));
+        appendHelpItem(sb, "col-run-all <colecao>", t("Executa todos os requests.", "Runs all requests."));
+        appendHelpItem(sb, "col-rm-req <colecao> <indice> / col-rm <nome>", t("Remove request/colecao.", "Removes request/collection."));
+
+        appendHelpSection(sb, t("Historico", "History"));
+        appendHelpItem(sb, "history [--limit N]", t("Mostra historico.", "Shows history."));
+        appendHelpItem(sb, "replay <indice>", t("Reexecuta request do historico.", "Replays history request."));
+        appendHelpItem(sb, "clear-history", t("Limpa historico.", "Clears history."));
+
+        appendHelpSection(sb, t("Mock Server", "Mock Server"));
+        appendHelpItem(sb, "mock-start [--port 8089] / mock-stop / mock-status", t("Controla servidor mock.", "Controls mock server."));
+        appendHelpItem(sb, "mock-add <method> <path> [--status --body --header --delay --desc]", t("Adiciona rota.", "Adds route."));
+        appendHelpItem(sb, "mock-add-json <method> <path> --body '{...}'", t("Atalho para rota JSON.", "Shortcut for JSON route."));
+        appendHelpItem(sb, "mock-add-crud <basePath>", t("Cria CRUD completo.", "Creates full CRUD."));
+        appendHelpItem(sb, "mock-from-response <path> [--method GET]", t("Cria rota da ultima resposta.", "Creates route from last response."));
+        appendHelpItem(sb, "mock-list / mock-show <i> / mock-edit <i> ...", t("Lista, mostra e edita rotas.", "Lists, shows and edits routes."));
+        appendHelpItem(sb, "mock-rm <i> / mock-clear", t("Remove rota(s).", "Removes route(s)."));
+        appendHelpItem(sb, "mock-logs [--limit N] / mock-clear-logs", t("Mostra/limpa logs do mock.", "Shows/clears mock logs."));
+
+        sb.append("\n");
+        return sb.toString();
     }
 
     // ========== HTTP REQUESTS ==============================================
@@ -63,7 +152,7 @@ public class ApiCommands {
         var req = ApiRequest.of(null, HttpMethod.POST, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
-        if (req == null) return styled(RED, "Erro ao ler body do arquivo.");
+        if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
         return executeRequest(req);
     }
 
@@ -77,7 +166,7 @@ public class ApiCommands {
         var req = ApiRequest.of(null, HttpMethod.PUT, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
-        if (req == null) return styled(RED, "Erro ao ler body do arquivo.");
+        if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
         return executeRequest(req);
     }
 
@@ -91,7 +180,7 @@ public class ApiCommands {
         var req = ApiRequest.of(null, HttpMethod.PATCH, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
-        if (req == null) return styled(RED, "Erro ao ler body do arquivo.");
+        if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
         return executeRequest(req);
     }
 
@@ -133,7 +222,7 @@ public class ApiCommands {
             }
         }
         req = resolveAndSetBody(req, body);
-        if (req == null) return styled(RED, "Erro ao ler body do arquivo.");
+        if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
         return executeRequest(req);
     }
 
@@ -142,15 +231,15 @@ public class ApiCommands {
     @ShellMethod(key = "response", value = "Mostra a ultima resposta completa")
     public String response() {
         var res = service.getLastResponse();
-        if (res == null) return styled(YELLOW, "Nenhuma resposta ainda. Envie um request primeiro.");
+        if (res == null) return styled(YELLOW, t("Nenhuma resposta ainda. Envie um request primeiro.", "No response yet. Send a request first."));
         return formatFullResponse(service.getLastRequest(), res);
     }
 
     @ShellMethod(key = "body", value = "Mostra apenas o body da ultima resposta")
     public String body() {
         var res = service.getLastResponse();
-        if (res == null) return styled(YELLOW, "Nenhuma resposta ainda.");
-        if (res.body().isBlank()) return styled(DIM, "(body vazio)");
+        if (res == null) return styled(YELLOW, t("Nenhuma resposta ainda.", "No response yet."));
+        if (res.body().isBlank()) return styled(DIM, t("(body vazio)", "(empty body)"));
         if (res.isJson()) return jsonFormatter.prettify(res.body());
         return res.body();
     }
@@ -158,14 +247,14 @@ public class ApiCommands {
     @ShellMethod(key = "response-headers", value = "Mostra headers da ultima resposta")
     public String responseHeaders() {
         var res = service.getLastResponse();
-        if (res == null) return styled(YELLOW, "Nenhuma resposta ainda.");
-        return formatHeaders("Response Headers", res.headers());
+        if (res == null) return styled(YELLOW, t("Nenhuma resposta ainda.", "No response yet."));
+        return formatHeaders(t("Headers da Resposta", "Response Headers"), res.headers());
     }
 
     @ShellMethod(key = "curl", value = "Gera comando cURL do ultimo request")
     public String curl() {
         var req = service.getLastRequest();
-        if (req == null) return styled(YELLOW, "Nenhum request ainda.");
+        if (req == null) return styled(YELLOW, t("Nenhum request ainda.", "No request yet."));
         return styled(CYAN, req.toCurl());
     }
 
@@ -181,7 +270,7 @@ public class ApiCommands {
 
             if (dryRun) {
                 var sb = new StringBuilder();
-                sb.append(styled(BOLD_CYAN, "\n  Request parseado do cURL\n\n"));
+                sb.append(styled(BOLD_CYAN, "\n  " + t("Request parseado do cURL", "Parsed request from cURL") + "\n\n"));
                 sb.append(styled(BOLD, "  " + req.method() + " ")).append(req.url()).append("\n");
                 if (!req.headers().isEmpty()) {
                     for (var h : req.headers().entrySet()) {
@@ -199,7 +288,7 @@ public class ApiCommands {
                 return sb.toString();
             }
 
-            // Salvar em colecao se pedido
+            // Save to collection if requested
             if (save != null) {
                 var parts = save.split(":", 2);
                 if (parts.length == 2) {
@@ -207,14 +296,15 @@ public class ApiCommands {
                     if (col.isPresent()) {
                         service.saveCollection(col.get().withRequest(req.withName(parts[1])));
                         System.out.println(styled(GREEN,
-                                "Salvo como '" + parts[1] + "' na colecao '" + parts[0] + "'"));
+                                t("Salvo como '" + parts[1] + "' na colecao '" + parts[0] + "'",
+                                  "Saved as '" + parts[1] + "' in collection '" + parts[0] + "'")));
                     }
                 }
             }
 
             return executeRequest(req);
         } catch (Exception e) {
-            return styled(RED, "Erro ao parsear cURL: " + e.getMessage());
+            return styled(RED, t("Erro ao parsear cURL: ", "Error parsing cURL: ") + e.getMessage());
         }
     }
 
@@ -223,9 +313,9 @@ public class ApiCommands {
         try {
             service.saveResponseToFile(filePath);
             var res = service.getLastResponse();
-            return styled(GREEN, "Resposta salva em: " + filePath + " (" + res.sizeText() + ")");
+            return styled(GREEN, t("Resposta salva em: ", "Response saved to: ") + filePath + " (" + res.sizeText() + ")");
         } catch (IOException e) {
-            return styled(RED, "Erro ao salvar: " + e.getMessage());
+            return styled(RED, t("Erro ao salvar: ", "Error saving: ") + e.getMessage());
         }
     }
 
@@ -236,32 +326,32 @@ public class ApiCommands {
             @ShellOption(help = "Nome do header") String key,
             @ShellOption(help = "Valor do header") String value) {
         service.setDefaultHeader(key, value);
-        return styled(GREEN, "Header definido: " + key + ": " + value);
+        return styled(GREEN, t("Header definido: ", "Header set: ") + key + ": " + value);
     }
 
     @ShellMethod(key = "unset-header", value = "Remove header padrao")
     public String unsetHeader(@ShellOption(help = "Nome do header") String key) {
         service.removeDefaultHeader(key);
-        return styled(GREEN, "Header removido: " + key);
+        return styled(GREEN, t("Header removido: ", "Header removed: ") + key);
     }
 
     @ShellMethod(key = "headers", value = "Lista headers padrao configurados")
     public String headers() {
         var hdrs = service.getDefaultHeaders();
-        if (hdrs.isEmpty()) return styled(DIM, "Nenhum header padrao configurado.");
-        return formatHeaders("Headers Padrao", hdrs);
+        if (hdrs.isEmpty()) return styled(DIM, t("Nenhum header padrao configurado.", "No default headers configured."));
+        return formatHeaders(t("Headers Padrao", "Default Headers"), hdrs);
     }
 
     @ShellMethod(key = "clear-headers", value = "Remove todos os headers padrao")
     public String clearHeaders() {
         service.clearDefaultHeaders();
-        return styled(GREEN, "Todos os headers padrao removidos.");
+        return styled(GREEN, t("Todos os headers padrao removidos.", "All default headers removed."));
     }
 
     @ShellMethod(key = "bearer", value = "Define Authorization: Bearer <token>")
     public String bearer(@ShellOption(help = "Token") String token) {
         service.setDefaultHeader("Authorization", "Bearer " + token);
-        return styled(GREEN, "Bearer token configurado.");
+        return styled(GREEN, t("Bearer token configurado.", "Bearer token set."));
     }
 
     // ========== ENVIRONMENTS ===============================================
@@ -269,7 +359,7 @@ public class ApiCommands {
     @ShellMethod(key = "env-create", value = "Cria um novo ambiente")
     public String envCreate(@ShellOption(help = "Nome do ambiente (ex: dev, prod)") String name) {
         service.saveEnvironment(Environment.empty(name));
-        return styled(GREEN, "Ambiente criado: " + name);
+        return styled(GREEN, t("Ambiente criado: ", "Environment created: ") + name);
     }
 
     @ShellMethod(key = "env-set", value = "Define variavel no ambiente")
@@ -278,9 +368,9 @@ public class ApiCommands {
             @ShellOption(help = "Nome da variavel") String key,
             @ShellOption(help = "Valor") String value) {
         var env = service.getEnvironment(envName);
-        if (env.isEmpty()) return styled(RED, "Ambiente nao encontrado: " + envName);
+        if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + envName);
         service.saveEnvironment(env.get().withVariable(key, value));
-        return styled(GREEN, "Variavel definida: " + key + " = " + value + " [" + envName + "]");
+        return styled(GREEN, t("Variavel definida: ", "Variable set: ") + key + " = " + value + " [" + envName + "]");
     }
 
     @ShellMethod(key = "env-unset", value = "Remove variavel de um ambiente")
@@ -288,45 +378,45 @@ public class ApiCommands {
             @ShellOption(help = "Nome do ambiente") String envName,
             @ShellOption(help = "Nome da variavel") String key) {
         var env = service.getEnvironment(envName);
-        if (env.isEmpty()) return styled(RED, "Ambiente nao encontrado: " + envName);
+        if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + envName);
         service.saveEnvironment(env.get().withoutVariable(key));
-        return styled(GREEN, "Variavel removida: " + key + " [" + envName + "]");
+        return styled(GREEN, t("Variavel removida: ", "Variable removed: ") + key + " [" + envName + "]");
     }
 
     @ShellMethod(key = "env-use", value = "Ativa um ambiente (variaveis {{key}} serao substituidas)")
     public String envUse(@ShellOption(help = "Nome do ambiente") String name) {
         var env = service.getEnvironment(name);
-        if (env.isEmpty()) return styled(RED, "Ambiente nao encontrado: " + name);
+        if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + name);
         service.setActiveEnvironment(name);
-        return styled(GREEN, "Ambiente ativo: " + name);
+        return styled(GREEN, t("Ambiente ativo: ", "Active environment: ") + name);
     }
 
     @ShellMethod(key = "env-clear", value = "Desativa o ambiente atual")
     public String envClear() {
         service.clearActiveEnvironment();
-        return styled(GREEN, "Ambiente desativado.");
+        return styled(GREEN, t("Ambiente desativado.", "Environment deactivated."));
     }
 
     @ShellMethod(key = "envs", value = "Lista ambientes disponiveis")
     public String envs() {
         var envs = service.listEnvironments();
-        if (envs.isEmpty()) return styled(DIM, "Nenhum ambiente criado. Use 'env-create <nome>' para criar.");
+        if (envs.isEmpty()) return styled(DIM, t("Nenhum ambiente criado. Use 'env-create <nome>' para criar.", "No environments created. Use 'env-create <name>' to create one."));
         return formatEnvironments(envs);
     }
 
     @ShellMethod(key = "env-show", value = "Mostra variaveis de um ambiente")
     public String envShow(@ShellOption(help = "Nome do ambiente") String name) {
         var env = service.getEnvironment(name);
-        if (env.isEmpty()) return styled(RED, "Ambiente nao encontrado: " + name);
+        if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + name);
         return formatEnvironmentDetail(env.get());
     }
 
     @ShellMethod(key = "env-rm", value = "Remove um ambiente")
     public String envRm(@ShellOption(help = "Nome do ambiente") String name) {
         if (service.removeEnvironment(name)) {
-            return styled(GREEN, "Ambiente removido: " + name);
+            return styled(GREEN, t("Ambiente removido: ", "Environment removed: ") + name);
         }
-        return styled(RED, "Ambiente nao encontrado: " + name);
+        return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + name);
     }
 
     // ========== COLLECTIONS ================================================
@@ -334,7 +424,7 @@ public class ApiCommands {
     @ShellMethod(key = "col-create", value = "Cria uma nova colecao")
     public String colCreate(@ShellOption(help = "Nome da colecao") String name) {
         service.saveCollection(Collection.empty(name));
-        return styled(GREEN, "Colecao criada: " + name);
+        return styled(GREEN, t("Colecao criada: ", "Collection created: ") + name);
     }
 
     @ShellMethod(key = "col-add", value = "Salva o ultimo request em uma colecao")
@@ -342,11 +432,12 @@ public class ApiCommands {
             @ShellOption(help = "Nome da colecao") String colName,
             @ShellOption(help = "Nome para o request") String reqName) {
         var req = service.getLastRequest();
-        if (req == null) return styled(RED, "Nenhum request para salvar. Envie um request primeiro.");
+        if (req == null) return styled(RED, t("Nenhum request para salvar. Envie um request primeiro.", "No request to save. Send a request first."));
         var col = service.getCollection(colName);
-        if (col.isEmpty()) return styled(RED, "Colecao nao encontrada: " + colName);
+        if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
         service.saveCollection(col.get().withRequest(req.withName(reqName)));
-        return styled(GREEN, "Request '" + reqName + "' salvo na colecao '" + colName + "'");
+        return styled(GREEN, t("Request '" + reqName + "' salvo na colecao '" + colName + "'",
+                                "Request '" + reqName + "' saved in collection '" + colName + "'"));
     }
 
     @ShellMethod(key = "col-run", value = "Executa um request de uma colecao")
@@ -354,10 +445,11 @@ public class ApiCommands {
             @ShellOption(help = "Nome da colecao") String colName,
             @ShellOption(help = "Indice do request (1-based)") int index) {
         var col = service.getCollection(colName);
-        if (col.isEmpty()) return styled(RED, "Colecao nao encontrada: " + colName);
+        if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
         var requests = col.get().requests();
         if (index < 1 || index > requests.size()) {
-            return styled(RED, "Indice invalido. Colecao tem " + requests.size() + " request(s).");
+            return styled(RED, t("Indice invalido. Colecao tem " + requests.size() + " request(s).",
+                                  "Invalid index. Collection has " + requests.size() + " request(s)."));
         }
         return executeRequest(requests.get(index - 1));
     }
@@ -365,7 +457,7 @@ public class ApiCommands {
     @ShellMethod(key = "col-show", value = "Mostra requests de uma colecao")
     public String colShow(@ShellOption(help = "Nome da colecao") String name) {
         var col = service.getCollection(name);
-        if (col.isEmpty()) return styled(RED, "Colecao nao encontrada: " + name);
+        if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + name);
         return formatCollectionDetail(col.get());
     }
 
@@ -374,29 +466,33 @@ public class ApiCommands {
             @ShellOption(help = "Nome da colecao") String colName,
             @ShellOption(help = "Indice do request (1-based)") int index) {
         var col = service.getCollection(colName);
-        if (col.isEmpty()) return styled(RED, "Colecao nao encontrada: " + colName);
+        if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
         if (index < 1 || index > col.get().requests().size()) {
-            return styled(RED, "Indice invalido.");
+            return styled(RED, t("Indice invalido.", "Invalid index."));
         }
         service.saveCollection(col.get().withoutRequest(index - 1));
-        return styled(GREEN, "Request removido da colecao '" + colName + "'");
+        return styled(GREEN, t("Request removido da colecao '" + colName + "'",
+                                "Request removed from collection '" + colName + "'"));
     }
 
     @ShellMethod(key = "cols", value = "Lista colecoes")
     public String cols() {
         var cols = service.listCollections();
-        if (cols.isEmpty()) return styled(DIM, "Nenhuma colecao. Use 'col-create <nome>' para criar.");
+        if (cols.isEmpty()) return styled(DIM, t("Nenhuma colecao. Use 'col-create <nome>' para criar.", "No collections. Use 'col-create <name>' to create one."));
         return formatCollections(cols);
     }
 
     @ShellMethod(key = "col-run-all", value = "Executa todos os requests de uma colecao (smoke test)")
     public String colRunAll(@ShellOption(help = "Nome da colecao") String colName) {
         var col = service.getCollection(colName);
-        if (col.isEmpty()) return styled(RED, "Colecao nao encontrada: " + colName);
-        if (col.get().requests().isEmpty()) return styled(YELLOW, "Colecao vazia.");
+        if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
+        if (col.get().requests().isEmpty()) return styled(YELLOW, t("Colecao vazia.", "Empty collection."));
 
-        System.out.println(styled(CYAN, "Executando " + col.get().requests().size()
-                + " request(s) da colecao '" + colName + "'...\n"));
+        System.out.println(styled(CYAN, t("Executando " + col.get().requests().size()
+                + " request(s) da colecao '" + colName + "'...",
+                "Running " + col.get().requests().size()
+                + " request(s) from collection '" + colName + "'...")));
+        System.out.println();
 
         var results = service.runCollection(colName);
         return formatRunAllResults(colName, results);
@@ -405,9 +501,9 @@ public class ApiCommands {
     @ShellMethod(key = "col-rm", value = "Remove uma colecao")
     public String colRm(@ShellOption(help = "Nome da colecao") String name) {
         if (service.removeCollection(name)) {
-            return styled(GREEN, "Colecao removida: " + name);
+            return styled(GREEN, t("Colecao removida: ", "Collection removed: ") + name);
         }
-        return styled(RED, "Colecao nao encontrada: " + name);
+        return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + name);
     }
 
     // ========== HISTORY ====================================================
@@ -416,21 +512,21 @@ public class ApiCommands {
     public String history(
             @ShellOption(value = "--limit", defaultValue = "20", help = "Limite de entradas") int limit) {
         var entries = service.getHistory(limit);
-        if (entries.isEmpty()) return styled(DIM, "Historico vazio.");
+        if (entries.isEmpty()) return styled(DIM, t("Historico vazio.", "History is empty."));
         return formatHistory(entries);
     }
 
     @ShellMethod(key = "replay", value = "Re-executa um request do historico")
     public String replay(@ShellOption(help = "Indice do historico (1-based)") int index) {
         var entry = service.getHistoryEntry(index);
-        if (entry == null) return styled(RED, "Indice invalido.");
+        if (entry == null) return styled(RED, t("Indice invalido.", "Invalid index."));
         return executeRequest(entry.request());
     }
 
     @ShellMethod(key = "clear-history", value = "Limpa o historico de requests")
     public String clearHistory() {
         service.clearHistory();
-        return styled(GREEN, "Historico limpo.");
+        return styled(GREEN, t("Historico limpo.", "History cleared."));
     }
 
     // ========== FORMATTING =================================================
@@ -441,7 +537,7 @@ public class ApiCommands {
             var response = service.execute(request);
             return formatResponse(request, response);
         } catch (Exception e) {
-            return styled(RED, "Erro: " + e.getMessage());
+            return styled(RED, t("Erro: ", "Error: ") + e.getMessage());
         }
     }
 
@@ -468,7 +564,7 @@ public class ApiCommands {
                 sb.append("  ").append(lines[i]).append("\n");
             }
             if (lines.length > 80) {
-                sb.append(styled(DIM, "  ... (" + (lines.length - 80) + " linhas omitidas. Use 'body' para ver tudo)\n"));
+                sb.append(styled(DIM, "  ... (" + (lines.length - 80) + " " + t("linhas omitidas. Use 'body' para ver tudo", "lines omitted. Use 'body' to see all") + ")\n"));
             }
         }
 
@@ -478,7 +574,7 @@ public class ApiCommands {
     private String formatFullResponse(ApiRequest req, ApiResponse res) {
         var sb = new StringBuilder();
 
-        sb.append(styled(BOLD_CYAN, "\n  Request\n\n"));
+        sb.append(styled(BOLD_CYAN, "\n  " + t("Requisicao", "Request") + "\n\n"));
         if (req != null) {
             sb.append(styled(BOLD, "  " + req.method() + " ")).append(styled(WHITE, req.url())).append("\n");
             if (!req.headers().isEmpty()) {
@@ -487,12 +583,12 @@ public class ApiCommands {
                 }
             }
             if (req.body() != null && !req.body().isBlank()) {
-                sb.append(styled(DIM, "\n  Body:\n"));
+                sb.append(styled(DIM, "\n  " + t("Body", "Body") + ":\n"));
                 sb.append("  ").append(req.body()).append("\n");
             }
         }
 
-        sb.append(styled(BOLD_CYAN, "\n  Response\n\n"));
+        sb.append(styled(BOLD_CYAN, "\n  " + t("Resposta", "Response") + "\n\n"));
         var statusStyle = res.isSuccess() ? BOLD_GREEN : (res.statusCode() < 500 ? BOLD_YELLOW : BOLD_RED);
         sb.append("  ").append(styled(statusStyle, res.statusText()));
         sb.append(styled(DIM, "  |  "));
@@ -508,7 +604,7 @@ public class ApiCommands {
 
         // Body
         if (!res.body().isBlank()) {
-            sb.append(styled(BOLD_CYAN, "\n  Body\n\n"));
+            sb.append(styled(BOLD_CYAN, "\n  " + t("Body", "Body") + "\n\n"));
             var bodyText = res.isJson() ? jsonFormatter.prettify(res.body()) : res.body();
             for (var line : bodyText.split("\n")) {
                 sb.append("  ").append(line).append("\n");
@@ -529,7 +625,7 @@ public class ApiCommands {
 
     private String formatEnvironments(List<Environment> envs) {
         var sb = new StringBuilder();
-        sb.append(styled(BOLD_CYAN, "\n  Ambientes\n\n"));
+        sb.append(styled(BOLD_CYAN, "\n  " + t("Ambientes", "Environments") + "\n\n"));
 
         var active = service.getActiveEnvironment();
 
@@ -540,7 +636,7 @@ public class ApiCommands {
             sb.append(marker);
             sb.append(styled(CYAN, String.format("%-3d ", i + 1)));
             sb.append(styled(isActive ? BOLD_GREEN : BOLD, env.name()));
-            sb.append(styled(DIM, " (" + env.variables().size() + " variavel(is))"));
+            sb.append(styled(DIM, " (" + env.variables().size() + " " + t("variavel(is)", "variable(s)") + ")"));
             sb.append("\n");
         }
         return sb.toString();
@@ -551,12 +647,12 @@ public class ApiCommands {
         var active = service.getActiveEnvironment();
         var isActive = active != null && active.name().equals(env.name());
 
-        sb.append(styled(BOLD_CYAN, "\n  Ambiente: " + env.name()));
-        if (isActive) sb.append(styled(GREEN, " (ativo)"));
+        sb.append(styled(BOLD_CYAN, "\n  " + t("Ambiente: ", "Environment: ") + env.name()));
+        if (isActive) sb.append(styled(GREEN, " " + t("(ativo)", "(active)")));
         sb.append("\n\n");
 
         if (env.variables().isEmpty()) {
-            sb.append(styled(DIM, "  Nenhuma variavel definida.\n"));
+            sb.append(styled(DIM, "  " + t("Nenhuma variavel definida.", "No variables defined.") + "\n"));
         } else {
             for (var v : env.variables().entrySet()) {
                 sb.append(styled(YELLOW, "  {{" + v.getKey() + "}}"));
@@ -569,7 +665,7 @@ public class ApiCommands {
 
     private String formatCollections(List<Collection> cols) {
         var sb = new StringBuilder();
-        sb.append(styled(BOLD_CYAN, "\n  Colecoes\n\n"));
+        sb.append(styled(BOLD_CYAN, "\n  " + t("Colecoes", "Collections") + "\n\n"));
 
         for (int i = 0; i < cols.size(); i++) {
             var col = cols.get(i);
@@ -583,14 +679,14 @@ public class ApiCommands {
 
     private String formatCollectionDetail(Collection col) {
         var sb = new StringBuilder();
-        sb.append(styled(BOLD_CYAN, "\n  Colecao: " + col.name() + "\n\n"));
+        sb.append(styled(BOLD_CYAN, "\n  " + t("Colecao: ", "Collection: ") + col.name() + "\n\n"));
 
         if (col.requests().isEmpty()) {
-            sb.append(styled(DIM, "  Nenhum request salvo.\n"));
+            sb.append(styled(DIM, "  " + t("Nenhum request salvo.", "No saved requests.") + "\n"));
             return sb.toString();
         }
 
-        sb.append(styled(DIM, String.format("  %-4s %-8s %-30s %s%n", "#", "METODO", "NOME", "URL")));
+        sb.append(styled(DIM, String.format("  %-4s %-8s %-30s %s%n", "#", t("METODO", "METHOD"), t("NOME", "NAME"), "URL")));
         sb.append(styled(DIM, "  " + "-".repeat(90) + "\n"));
 
         for (int i = 0; i < col.requests().size(); i++) {
@@ -614,10 +710,10 @@ public class ApiCommands {
 
     private String formatHistory(List<SavedRequest> entries) {
         var sb = new StringBuilder();
-        sb.append(styled(BOLD_CYAN, "\n  Historico\n\n"));
+        sb.append(styled(BOLD_CYAN, "\n  " + t("Historico", "History") + "\n\n"));
 
         sb.append(styled(DIM, String.format("  %-4s %-8s %-6s %-45s %s%n",
-                "#", "METODO", "STATUS", "URL", "TEMPO")));
+                "#", t("METODO", "METHOD"), "STATUS", "URL", t("TEMPO", "TIME"))));
         sb.append(styled(DIM, "  " + "-".repeat(90) + "\n"));
 
         for (int i = 0; i < entries.size(); i++) {
@@ -646,7 +742,7 @@ public class ApiCommands {
         }
 
         sb.append("\n");
-        sb.append(styled(DIM, "  Total: " + service.historySize() + " registro(s)\n"));
+        sb.append(styled(DIM, "  Total: " + service.historySize() + " " + t("registro(s)", "record(s)") + "\n"));
         return sb.toString();
     }
 
@@ -665,31 +761,40 @@ public class ApiCommands {
         return text.length() > max ? text.substring(0, max - 1) + "~" : text;
     }
 
-    /** Anexa query params a URL. Params no formato "key=value&key2=value2". */
+    private void appendHelpSection(StringBuilder sb, String title) {
+        sb.append(styled(BOLD_CYAN, "\n  " + title + "\n"));
+    }
+
+    private void appendHelpItem(StringBuilder sb, String command, String description) {
+        sb.append(styled(CYAN, "  " + String.format("%-52s", command)));
+        sb.append(styled(DIM, " - " + description + "\n"));
+    }
+
+    /** Appends query params to URL. Params in format "key=value&key2=value2". */
     private String appendParams(String url, String params) {
         if (params == null || params.isBlank()) return url;
         var separator = url.contains("?") ? "&" : "?";
         return url + separator + params;
     }
 
-    /** Resolve body (inline ou @arquivo) e retorna request com body setado. Retorna null se erro. */
+    /** Resolves body (inline or @file) and returns request with body set. Returns null on error. */
     private ApiRequest resolveAndSetBody(ApiRequest req, String body) {
         if (body == null) return req;
         try {
             var resolved = service.resolveBody(body);
             return req.withBody(resolved);
         } catch (IOException e) {
-            System.err.println("Erro ao ler body: " + e.getMessage());
+            System.err.println(t("Erro ao ler body: ", "Error reading body: ") + e.getMessage());
             return null;
         }
     }
 
     private String formatRunAllResults(String colName, List<ApiService.RunResult> results) {
         var sb = new StringBuilder();
-        sb.append(styled(BOLD_CYAN, "\n  Resultado: " + colName + "\n\n"));
+        sb.append(styled(BOLD_CYAN, "\n  " + t("Resultado: ", "Result: ") + colName + "\n\n"));
 
         sb.append(styled(DIM, String.format("  %-4s %-8s %-6s %-30s %-40s %s%n",
-                "#", "METODO", "STATUS", "NOME", "URL", "TEMPO")));
+                "#", t("METODO", "METHOD"), "STATUS", t("NOME", "NAME"), "URL", t("TEMPO", "TIME"))));
         sb.append(styled(DIM, "  " + "-".repeat(105) + "\n"));
 
         int passed = 0, failed = 0;
@@ -733,8 +838,11 @@ public class ApiCommands {
 
         sb.append("\n");
         var summaryStyle = failed == 0 ? BOLD_GREEN : BOLD_YELLOW;
-        sb.append(styled(summaryStyle, String.format("  %d passed, %d failed", passed, failed)));
-        sb.append(styled(DIM, String.format("  |  total: %dms  |  %d request(s)", totalTime, results.size())));
+        sb.append(styled(summaryStyle, String.format("  %d %s, %d %s",
+                passed, t("passou", "passed"),
+                failed, t("falhou", "failed"))));
+        sb.append(styled(DIM, String.format("  |  %s: %dms  |  %d request(s)",
+                t("total", "total"), totalTime, results.size())));
         sb.append("\n");
 
         return sb.toString();
