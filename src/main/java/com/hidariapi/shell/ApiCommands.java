@@ -6,6 +6,7 @@ import com.hidariapi.model.Language;
 import com.hidariapi.shell.completion.CollectionNameValueProvider;
 import com.hidariapi.shell.completion.EnvironmentNameValueProvider;
 import com.hidariapi.service.ApiService;
+import com.hidariapi.service.BatchRequestExecutor;
 import com.hidariapi.service.LanguageService;
 import com.hidariapi.util.CurlParser;
 import com.hidariapi.util.JsonFormatter;
@@ -14,7 +15,6 @@ import org.springframework.shell.standard.ShellMethod;
 import org.springframework.shell.standard.ShellOption;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.*;
 
 /**
@@ -28,6 +28,7 @@ public class ApiCommands extends LocalizedSupport {
     private final CurlParser curlParser;
     private final LocalizedHelpRenderer helpRenderer;
     private final BatchOutputWriter batchOutputWriter;
+    private final BatchRequestExecutor batchRequestExecutor;
 
     public ApiCommands(
             ApiService service,
@@ -35,13 +36,15 @@ public class ApiCommands extends LocalizedSupport {
             CurlParser curlParser,
             LanguageService lang,
             LocalizedHelpRenderer helpRenderer,
-            BatchOutputWriter batchOutputWriter) {
+            BatchOutputWriter batchOutputWriter,
+            BatchRequestExecutor batchRequestExecutor) {
         super(lang);
         this.service = service;
         this.jsonFormatter = jsonFormatter;
         this.curlParser = curlParser;
         this.helpRenderer = helpRenderer;
         this.batchOutputWriter = batchOutputWriter;
+        this.batchRequestExecutor = batchRequestExecutor;
     }
 
     // ========== LANGUAGE ===================================================
@@ -507,94 +510,46 @@ public class ApiCommands extends LocalizedSupport {
             return executeSingleRequest(request);
         }
 
+        var result = batchRequestExecutor.execute(request, callCount);
+
         var sb = new StringBuilder();
         sb.append(styled(BOLD_CYAN, "\n  " + t("Execucao multipla", "Multiple execution") + "\n\n"));
         sb.append(styled(DIM, "  " + request.method() + " " + request.url() + "  |  "));
         sb.append(styled(CYAN, t("chamadas", "calls") + ": " + callCount + "\n\n"));
 
-        int success = 0;
-        int failed = 0;
-        long totalMs = 0;
-        var responses = new ArrayList<Map<String, Object>>();
-        var startedAt = Instant.now().toString();
-
-        for (int i = 1; i <= callCount; i++) {
-            try {
-                var response = service.execute(request);
-                var executedRequest = service.getLastRequest() != null ? service.getLastRequest() : request;
-                boolean ok = response.statusCode() < 400;
-                if (ok) success++;
-                else failed++;
-                totalMs += response.duration().toMillis();
-                responses.add(buildResponseEntry(i, executedRequest, response, null));
-
+        for (var call : result.calls()) {
+            if (call.response() != null) {
+                var response = call.response();
                 var statusStyle = response.isSuccess() ? GREEN : (response.statusCode() < 500 ? YELLOW : RED);
-                sb.append(styled(ok ? GREEN : RED, "  " + (ok ? "+" : "x") + " "));
-                sb.append(styled(CYAN, String.format("#%-3d ", i)));
+                sb.append(styled(call.isSuccess() ? GREEN : RED, "  " + (call.isSuccess() ? "+" : "x") + " "));
+                sb.append(styled(CYAN, String.format("#%-3d ", call.index())));
                 sb.append(styled(statusStyle, String.format("%-18s", response.statusText())));
                 sb.append(styled(DIM, "  |  " + response.durationText()));
                 sb.append(styled(DIM, "  |  " + response.sizeText()));
                 sb.append("\n");
-            } catch (Exception e) {
-                failed++;
-                responses.add(buildResponseEntry(i, request, null, e.getMessage()));
+            } else {
                 sb.append(styled(RED, "  x "));
-                sb.append(styled(CYAN, String.format("#%-3d ", i)));
-                sb.append(styled(RED, t("erro", "error") + ": " + e.getMessage())).append("\n");
+                sb.append(styled(CYAN, String.format("#%-3d ", call.index())));
+                sb.append(styled(RED, t("erro", "error") + ": " + call.error())).append("\n");
             }
         }
 
-        long avgMs = callCount > 0 ? totalMs / callCount : 0;
         sb.append("\n");
-        sb.append(styled(BOLD, "  " + t("Sucesso", "Success") + ": " + success));
+        sb.append(styled(BOLD, "  " + t("Sucesso", "Success") + ": " + result.success()));
         sb.append(styled(DIM, "  |  "));
-        sb.append(styled(BOLD, "  " + t("Falha", "Failed") + ": " + failed));
+        sb.append(styled(BOLD, "  " + t("Falha", "Failed") + ": " + result.failed()));
         sb.append(styled(DIM, "  |  "));
-        sb.append(styled(BOLD, "  " + t("Media", "Average") + ": " + avgMs + "ms"));
+        sb.append(styled(BOLD, "  " + t("Media", "Average") + ": " + result.averageDurationMs() + "ms"));
         sb.append("\n");
         if (outputFile != null) {
             try {
-                batchOutputWriter.write(outputFile, request, callCount, success, failed, totalMs, startedAt, responses);
+                batchOutputWriter.write(outputFile, result);
                 sb.append(styled(GREEN, "  " + t("Respostas salvas em: ", "Responses saved to: ") + outputFile)).append("\n");
             } catch (IOException e) {
                 sb.append(styled(RED, "  " + t("Erro ao salvar output: ", "Error saving output: ") + e.getMessage())).append("\n");
             }
         }
         return sb.toString();
-    }
-
-    private Map<String, Object> buildResponseEntry(int index, ApiRequest request, ApiResponse response, String error) {
-        var entry = new LinkedHashMap<String, Object>();
-        entry.put("index", index);
-        entry.put("timestamp", Instant.now().toString());
-        var requestData = new LinkedHashMap<String, Object>();
-        requestData.put("method", request.method().name());
-        requestData.put("url", request.url());
-        requestData.put("headers", request.headers());
-        requestData.put("body", request.body());
-        entry.put("request", requestData);
-        if (response != null) {
-            entry.put("success", response.statusCode() < 400);
-            entry.put("statusCode", response.statusCode());
-            entry.put("statusText", response.statusText());
-            entry.put("durationMs", response.duration().toMillis());
-            entry.put("size", response.size());
-            entry.put("contentType", response.contentType());
-            entry.put("headers", response.headers());
-            entry.put("body", response.body());
-            entry.put("error", null);
-        } else {
-            entry.put("success", false);
-            entry.put("statusCode", null);
-            entry.put("statusText", null);
-            entry.put("durationMs", null);
-            entry.put("size", null);
-            entry.put("contentType", null);
-            entry.put("headers", Map.of());
-            entry.put("body", null);
-            entry.put("error", error);
-        }
-        return entry;
     }
 
     private String executeSingleRequest(ApiRequest request) {

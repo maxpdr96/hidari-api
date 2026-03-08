@@ -35,6 +35,15 @@ Ao abrir, voce vai ver o prompt interativo. Digite `help` para ver todos os coma
 
 When you open it, you'll see the interactive prompt. Type `help` to see all commands.
 
+Voce pode trocar o idioma do CLI a qualquer momento:
+
+You can switch CLI language at any time:
+
+```bash
+language pt
+language eng
+```
+
 ```
 hidari-api:>
 ```
@@ -75,13 +84,13 @@ Each HTTP method has its own command.
 
 | Comando / Command | O que faz / What it does |
 |---------|-----------|
-| `get <url>` | Envia GET / Sends GET |
-| `post <url> --body '{"key":"val"}'` | Envia POST com body JSON / Sends POST with JSON body |
-| `put <url> --body '{"key":"val"}'` | Envia PUT com body JSON / Sends PUT with JSON body |
-| `patch <url> --body '{"key":"val"}'` | Envia PATCH com body JSON / Sends PATCH with JSON body |
-| `delete <url>` | Envia DELETE / Sends DELETE |
-| `head <url>` | Envia HEAD (retorna so headers / returns headers only) |
-| `options <url>` | Envia OPTIONS / Sends OPTIONS |
+| `get <url> [--param ...] [--call N] [--output file.json]` | Envia GET (simples ou em lote) / Sends GET (single or batch) |
+| `post <url> --body ... [--param ...] [--call N] [--output file.json]` | Envia POST com body JSON / Sends POST with JSON body |
+| `put <url> --body ... [--param ...] [--call N] [--output file.json]` | Envia PUT com body JSON / Sends PUT with JSON body |
+| `patch <url> --body ... [--param ...] [--call N] [--output file.json]` | Envia PATCH com body JSON / Sends PATCH with JSON body |
+| `delete <url> [--param ...] [--call N] [--output file.json]` | Envia DELETE / Sends DELETE |
+| `head <url> [--call N] [--output file.json]` | Envia HEAD (retorna so headers / returns headers only) |
+| `options <url> [--call N] [--output file.json]` | Envia OPTIONS / Sends OPTIONS |
 
 #### Exemplos / Examples
 
@@ -100,6 +109,25 @@ patch https://jsonplaceholder.typicode.com/posts/1 --body '{"title":"So o titulo
 
 # DELETE
 delete https://jsonplaceholder.typicode.com/posts/1
+```
+
+---
+
+### Execucao em lote (--call) e export (--output)
+
+Rode o mesmo request varias vezes com `--call`. Opcionalmente, salve **todas** as respostas em JSON com `--output`.
+
+Run the same request multiple times with `--call`. Optionally save **all** responses to JSON with `--output`.
+
+```bash
+# chama 10x / calls 10x
+get https://api.com/health --call 10
+
+# salva todas as chamadas em JSON / saves all calls to JSON
+get https://api.com/health --call 10 --output resultado.json
+
+# caminho absoluto com @ / absolute path with @
+get https://api.com/health --call 10 --output @/home/user/resultados/batch.json
 ```
 
 ---
@@ -284,6 +312,29 @@ get {{base_url}}/api/users
 
 # desativar ambiente / deactivate environment
 env-clear
+```
+
+#### Templates dinamicos (runtime) / Dynamic runtime templates
+
+Voce pode usar templates em URL, headers e body:
+
+You can use templates in URL, headers and body:
+
+```bash
+# runtime
+{{$timestamp}}      # epoch ms
+{{$isoTimestamp}}   # ISO-8601
+{{$uuid}}           # UUID randomico
+{{$cpf}}            # CPF valido randomico
+
+# ambiente
+{{base_url}}
+{{env.base_url}}
+
+# ultima resposta
+{{last.status}}
+{{last.header.content-type}}
+{{last.body.user.id}}
 ```
 
 #### Gerenciando / Managing
@@ -491,6 +542,34 @@ mock-add-json GET /api/users/{id} --body '{"id":1,"name":"Joao"}'
 # GET /api/users/abc
 ```
 
+#### Templates dinamicos no mock / Dynamic templates in mock responses
+
+No body/headers do mock, voce pode usar:
+
+Inside mock body/headers, you can use:
+
+```bash
+{{param.id}}      # path param
+{{query.page}}    # query param
+{{$timestamp}}
+{{$isoTimestamp}}
+{{$uuid}}
+{{$cpf}}
+{{faker.uuid}}
+{{faker.timestamp}}
+{{faker.int}}
+{{faker.bool}}
+{{faker.word}}
+{{faker.cpf}}
+```
+
+Exemplo:
+
+```bash
+mock-add-json GET /api/users/{id} \
+  --body '{"id":"{{param.id}}","page":"{{query.page}}","cpf":"{{faker.cpf}}"}'
+```
+
 #### Editando rotas / Editing routes
 
 Use `mock-edit` para alterar qualquer campo de uma rota existente. So informe o que quer mudar — o resto continua igual.
@@ -579,9 +658,9 @@ mock-status
 
 #### Persistencia / Persistence
 
-As rotas ficam salvas em `~/.config/hidariapi/mocks.json`. Quando voce abre o hidari-api de novo, basta dar `mock-start` e todas as rotas anteriores ja estao la.
+As rotas ficam salvas no diretorio de configuracao da aplicacao. Quando voce abre o hidari-api de novo, basta dar `mock-start` e todas as rotas anteriores ja estao la.
 
-Routes are saved in `~/.config/hidariapi/mocks.json`. When you open hidari-api again, just run `mock-start` and all previous routes are already there.
+Routes are saved in the app configuration directory. When you open hidari-api again, just run `mock-start` and all previous routes are already there.
 
 #### CORS
 
@@ -706,9 +785,13 @@ mock-edit 1 --body '{"login":"meu-user","name":"Meu Nome"}'
 
 ## Onde os dados ficam salvos / Where data is stored
 
-Tudo fica em `~/.config/hidariapi/`.
+Diretorio padrao por sistema:
 
-Everything is stored in `~/.config/hidariapi/`.
+Default directory per system:
+
+- Linux/macOS: `~/.config/hidariapi/` (ou `$XDG_CONFIG_HOME/hidariapi`)
+- Windows: `%APPDATA%\\hidariapi`
+- Override (todos os SOs): `HIDARIAPI_CONFIG_DIR=/caminho/custom`
 
 | Arquivo / File | Conteudo / Content |
 |---------|----------|
@@ -729,14 +812,14 @@ They are simple JSON files — you can edit them manually if you want.
 
 | Comando / Command | Descricao / Description |
 |---------|-----------|
-| `get <url> [--param ...]` | GET request |
-| `post <url> [--body ...] [--param ...]` | POST request |
-| `put <url> [--body ...] [--param ...]` | PUT request |
-| `patch <url> [--body ...] [--param ...]` | PATCH request |
-| `delete <url> [--param ...]` | DELETE request |
-| `head <url>` | HEAD request |
-| `options <url>` | OPTIONS request |
-| `send <METHOD> <url> [--header ...] [--body ...] [--param ...]` | Request customizado / Custom request |
+| `get <url> [--param ...] [--call N] [--output file]` | GET request |
+| `post <url> [--body ...] [--param ...] [--call N] [--output file]` | POST request |
+| `put <url> [--body ...] [--param ...] [--call N] [--output file]` | PUT request |
+| `patch <url> [--body ...] [--param ...] [--call N] [--output file]` | PATCH request |
+| `delete <url> [--param ...] [--call N] [--output file]` | DELETE request |
+| `head <url> [--call N] [--output file]` | HEAD request |
+| `options <url> [--call N] [--output file]` | OPTIONS request |
+| `send <METHOD> <url> [--header ...] [--body ...] [--param ...] [--call N] [--output file]` | Request customizado / Custom request |
 | `import-curl "<cmd>" [--save col:name] [--dry-run]` | Importar cURL / Import cURL |
 
 ### Resposta / Response
