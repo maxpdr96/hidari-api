@@ -7,6 +7,7 @@ import com.hidariapi.shell.completion.CollectionNameValueProvider;
 import com.hidariapi.shell.completion.EnvironmentNameValueProvider;
 import com.hidariapi.service.ApiService;
 import com.hidariapi.service.BatchRequestExecutor;
+import com.hidariapi.service.BenchmarkService;
 import com.hidariapi.service.LanguageService;
 import com.hidariapi.util.CurlParser;
 import com.hidariapi.util.JsonFormatter;
@@ -29,6 +30,7 @@ public class ApiCommands extends LocalizedSupport {
     private final LocalizedHelpRenderer helpRenderer;
     private final BatchOutputWriter batchOutputWriter;
     private final BatchRequestExecutor batchRequestExecutor;
+    private final BenchmarkService benchmarkService;
 
     public ApiCommands(
             ApiService service,
@@ -37,7 +39,8 @@ public class ApiCommands extends LocalizedSupport {
             LanguageService lang,
             LocalizedHelpRenderer helpRenderer,
             BatchOutputWriter batchOutputWriter,
-            BatchRequestExecutor batchRequestExecutor) {
+            BatchRequestExecutor batchRequestExecutor,
+            BenchmarkService benchmarkService) {
         super(lang);
         this.service = service;
         this.jsonFormatter = jsonFormatter;
@@ -45,6 +48,7 @@ public class ApiCommands extends LocalizedSupport {
         this.helpRenderer = helpRenderer;
         this.batchOutputWriter = batchOutputWriter;
         this.batchRequestExecutor = batchRequestExecutor;
+        this.benchmarkService = benchmarkService;
     }
 
     // ========== LANGUAGE ===================================================
@@ -187,6 +191,72 @@ public class ApiCommands extends LocalizedSupport {
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
         return executeRequest(req, callCount, outputFile);
+    }
+
+    @ShellMethod(key = "bench", value = "Benchmark endpoint with calls/concurrency/warmup and latency percentiles")
+    public String bench(
+            @ShellOption(help = "URL") String url,
+            @ShellOption(value = "--method", defaultValue = "GET", help = "Metodo HTTP") String method,
+            @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
+                    help = "Headers (formato Key:Value, multiplos separados por ;)") String headers,
+            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
+                    help = "Body (use @arquivo.json para ler de arquivo)") String body,
+            @ShellOption(value = "--calls", defaultValue = "100", help = "Numero de chamadas medidas") int calls,
+            @ShellOption(value = "--concurrency", defaultValue = "10", help = "Concorrencia") int concurrency,
+            @ShellOption(value = "--warmup", defaultValue = "10", help = "Chamadas de aquecimento") int warmup) {
+        if (calls <= 0 || concurrency <= 0 || warmup < 0) {
+            return styled(RED, t("Parametros invalidos de benchmark.", "Invalid benchmark parameters."));
+        }
+
+        var req = ApiRequest.of(null, HttpMethod.fromString(method), url);
+        if (headers != null) {
+            for (var h : headers.split(";")) {
+                var parts = h.split(":", 2);
+                if (parts.length == 2) {
+                    req = req.withHeader(parts[0].trim(), parts[1].trim());
+                }
+            }
+        }
+        req = resolveAndSetBody(req, body);
+        if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
+
+        try {
+            var result = benchmarkService.run(req, calls, concurrency, warmup);
+            var sb = new StringBuilder();
+            sb.append(styled(BOLD_CYAN, "\n  " + t("Benchmark", "Benchmark") + "\n\n"));
+            sb.append(styled(DIM, "  " + result.method() + " " + result.url())).append("\n");
+            sb.append(styled(DIM, "  calls=" + result.calls()
+                    + "  concurrency=" + result.concurrency()
+                    + "  warmup=" + result.warmup())).append("\n\n");
+
+            sb.append(styled(BOLD, "  " + t("Sucesso", "Success") + ": " + result.success()));
+            sb.append(styled(DIM, "  |  "));
+            sb.append(styled(BOLD, "  " + t("Falha", "Failed") + ": " + result.failed()));
+            sb.append(styled(DIM, "  |  "));
+            sb.append(styled(BOLD, "  RPS: " + String.format("%.2f", result.rps()))).append("\n");
+
+            sb.append(styled(DIM, "  avg=" + result.averageMs() + "ms"
+                    + "  min=" + result.minMs() + "ms"
+                    + "  p50=" + result.p50() + "ms"
+                    + "  p95=" + result.p95() + "ms"
+                    + "  p99=" + result.p99() + "ms"
+                    + "  max=" + result.maxMs() + "ms"
+                    + "  wall=" + result.wallTimeMs() + "ms\n"));
+
+            var errors = result.metrics().stream()
+                    .filter(m -> m.error() != null)
+                    .limit(3)
+                    .toList();
+            if (!errors.isEmpty()) {
+                sb.append("\n").append(styled(BOLD_YELLOW, "  " + t("Erros (amostra)", "Errors (sample)") + "\n"));
+                for (var e : errors) {
+                    sb.append(styled(RED, "  #" + e.index() + " " + e.error())).append("\n");
+                }
+            }
+            return sb.toString();
+        } catch (Exception e) {
+            return styled(RED, t("Erro no benchmark: ", "Benchmark error: ") + e.getMessage());
+        }
     }
 
     // ========== RESPONSE ===================================================
@@ -541,6 +611,9 @@ public class ApiCommands extends LocalizedSupport {
         sb.append(styled(DIM, "  |  "));
         sb.append(styled(BOLD, "  " + t("Media", "Average") + ": " + result.averageDurationMs() + "ms"));
         sb.append("\n");
+        sb.append(styled(DIM, "  p50: " + result.p50DurationMs() + "ms  |  p95: " + result.p95DurationMs()
+                + "ms  |  p99: " + result.p99DurationMs() + "ms"
+                + "  |  min: " + result.minDurationMs() + "ms  |  max: " + result.maxDurationMs() + "ms\n"));
         if (outputFile != null) {
             try {
                 batchOutputWriter.write(outputFile, result);

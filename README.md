@@ -1,5 +1,10 @@
 # HidariApi
 
+![Java](https://img.shields.io/badge/Java-25-%23ED8B00.svg?logo=openjdk&logoColor=white)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-%236DB33F.svg?logo=spring&logoColor=white)
+![Spring Shell](https://img.shields.io/badge/Spring%20Shell-CLI-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+
 Um testador de APIs direto no terminal. Parecido com o Postman, mas sem sair da linha de comando.
 
 An API tester right in the terminal. Like Postman, but without leaving the command line.
@@ -129,6 +134,31 @@ get https://api.com/health --call 10 --output resultado.json
 # caminho absoluto com @ / absolute path with @
 get https://api.com/health --call 10 --output @/home/user/resultados/batch.json
 ```
+
+O resumo em tela inclui latencia `p50`, `p95`, `p99`, `min`, `max` e media.
+
+The on-screen summary includes latency `p50`, `p95`, `p99`, `min`, `max` and average.
+
+O JSON de `--output` inclui metadados e todas as respostas individuais com esses agregados.
+
+The `--output` JSON includes metadata and all individual responses with those aggregates.
+
+---
+
+### Benchmark dedicado (bench)
+
+Use `bench` para benchmark de carga com concorrencia e warmup.
+
+Use `bench` for load benchmarking with concurrency and warmup.
+
+```bash
+bench https://api.com/health --calls 500 --concurrency 20 --warmup 30
+bench https://api.com/users --method POST --body '{"name":"A"}' --calls 200 --concurrency 10
+```
+
+Saida inclui: sucesso/falha, RPS, avg/min/max e percentis (`p50`, `p95`, `p99`).
+
+Output includes: success/failure, RPS, avg/min/max and percentiles (`p50`, `p95`, `p99`).
 
 ---
 
@@ -499,6 +529,12 @@ get http://localhost:8089/api/users/42
 mock-add-json GET /api/health --body '{"status":"ok","version":"1.0"}'
 mock-add-json POST /api/login --body '{"token":"eyJhbGci...","expiresIn":3600}' --status 200
 mock-add-json GET /api/products --body @produtos.json
+
+# com timeout simulado (408 apos 2s) / with simulated timeout (408 after 2s)
+mock-add-json GET /api/slow --body '{"error":"timeout"}' --timeout-config 2
+
+# rota stateful por status / stateful status sequence
+mock-add-json GET /api/state --body '{"ok":true}' --scenario 500,500,200
 ```
 
 **Rota completa (com headers, delay, etc.) / Full route (with headers, delay, etc.):**
@@ -512,6 +548,12 @@ mock-add GET /api/error --status 500 --body '{"error":"Internal Server Error"}'
 
 # com headers customizados / with custom headers
 mock-add GET /api/data --status 200 --body '{"data":[]}' --header "X-RateLimit:100;X-Request-Id:abc"
+
+# timeout por rota (segundos) / per-route timeout (seconds)
+mock-add GET /api/timeout --timeout-config 2 --body '{"error":"Request Timeout"}'
+
+# cenario stateful / stateful scenario
+mock-add GET /api/order --body '{"order":"created"}' --scenario 500,200
 ```
 
 **Criar mock a partir de uma resposta real / Create mock from a real response:**
@@ -595,6 +637,12 @@ mock-edit 2 --status 500 --body '{"error":"Internal Server Error"}'
 # adicionar delay / add delay
 mock-edit 1 --delay 2000
 
+# configurar timeout simulado / set simulated timeout
+mock-edit 1 --timeout-config 2
+
+# configurar/alterar cenario stateful / set/update stateful scenario
+mock-edit 1 --scenario 500,200
+
 # mudar descricao / change description
 mock-edit 4 --desc "Rota de teste atualizada"
 
@@ -613,6 +661,8 @@ mock-edit 1 --status 201 --body '{"created":true}' --delay 100 --header "X-Custo
 | `--body <JSON\|@file>` | Altera o body (inline ou arquivo) / Changes the body (inline or file) |
 | `--header <K:V;...>` | Adiciona/atualiza headers / Adds/updates headers |
 | `--delay <ms>` | Altera o delay em ms / Changes the delay in ms |
+| `--timeout-config <s>` | Simula timeout e responde 408 apos N segundos / Simulates timeout and returns 408 after N seconds |
+| `--scenario <s1,s2,...>` | Sequencia de status stateful por chamada / Stateful status sequence per call |
 | `--desc <texto>` | Altera a descricao / Changes the description |
 | `--method <METHOD>` | Altera o metodo HTTP / Changes the HTTP method |
 | `--path <path>` | Altera o path / Changes the path |
@@ -820,6 +870,7 @@ They are simple JSON files — you can edit them manually if you want.
 | `head <url> [--call N] [--output file]` | HEAD request |
 | `options <url> [--call N] [--output file]` | OPTIONS request |
 | `send <METHOD> <url> [--header ...] [--body ...] [--param ...] [--call N] [--output file]` | Request customizado / Custom request |
+| `bench <url> [--method] [--header] [--body] [--calls] [--concurrency] [--warmup]` | Benchmark dedicado / Dedicated benchmark |
 | `import-curl "<cmd>" [--save col:name] [--dry-run]` | Importar cURL / Import cURL |
 
 ### Resposta / Response
@@ -875,11 +926,11 @@ They are simple JSON files — you can edit them manually if you want.
 | `mock-start [--port N]` | Iniciar servidor (padrao: 8089) / Start server (default: 8089) |
 | `mock-stop` | Parar servidor / Stop server |
 | `mock-status` | Ver status / Show status |
-| `mock-add <M> <path> [--status] [--body] [--header] [--delay] [--desc]` | Adicionar rota / Add route |
-| `mock-add-json <M> <path> --body ... [--status] [--desc]` | Rota JSON rapida / Quick JSON route |
+| `mock-add <M> <path> [--status] [--body] [--header] [--delay] [--timeout-config] [--scenario] [--desc]` | Adicionar rota / Add route |
+| `mock-add-json <M> <path> --body ... [--status] [--timeout-config] [--scenario] [--desc]` | Rota JSON rapida / Quick JSON route |
 | `mock-add-crud <path> [--list-body] [--item-body]` | CRUD completo (5 rotas) / Full CRUD (5 routes) |
 | `mock-from-response <path> [--method]` | Criar de resposta real / Create from real response |
-| `mock-edit <index> [--status] [--body] [--header] [--delay] [--desc] [--method] [--path]` | Editar rota / Edit route |
+| `mock-edit <index> [--status] [--body] [--header] [--delay] [--timeout-config] [--scenario] [--desc] [--method] [--path]` | Editar rota / Edit route |
 | `mock-list` | Listar rotas / List routes |
 | `mock-show <index>` | Ver detalhes da rota / Show route details |
 | `mock-rm <index>` | Remover rota / Remove route |

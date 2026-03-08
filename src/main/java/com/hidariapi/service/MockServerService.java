@@ -21,9 +21,11 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.UUID;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Mock Server HTTP embutido. Responde requests conforme as rotas definidas no {@link MockStore}.
@@ -38,6 +40,7 @@ public class MockServerService {
     private HttpServer server;
     private int port;
     private final List<RequestLog> requestLogs = Collections.synchronizedList(new ArrayList<>());
+    private final Map<String, AtomicInteger> scenarioCounters = new ConcurrentHashMap<>();
     private static final int MAX_LOGS = 100;
 
     /** Log de request recebido pelo mock server. */
@@ -95,14 +98,26 @@ public class MockServerService {
 
     public void addRoute(MockRoute route) {
         store.add(route);
+        scenarioCounters.remove(route.routeKey());
     }
 
     public boolean removeRoute(int index) {
-        return store.remove(index);
+        var existing = store.get(index);
+        var removed = store.remove(index);
+        if (removed && existing.isPresent()) {
+            scenarioCounters.remove(existing.get().routeKey());
+        }
+        return removed;
     }
 
     public boolean updateRoute(int index, MockRoute route) {
-        return store.update(index, route);
+        var existing = store.get(index);
+        var updated = store.update(index, route);
+        if (updated) {
+            existing.ifPresent(r -> scenarioCounters.remove(r.routeKey()));
+            scenarioCounters.remove(route.routeKey());
+        }
+        return updated;
     }
 
     public List<MockRoute> listRoutes() {
@@ -115,6 +130,7 @@ public class MockServerService {
 
     public void clearRoutes() {
         store.clear();
+        scenarioCounters.clear();
     }
 
     public int routeCount() {
@@ -163,21 +179,29 @@ public class MockServerService {
                 try { Thread.sleep(route.delay()); } catch (InterruptedException ignored) {}
             }
 
+            int responseStatus = resolveResponseStatus(route);
+            boolean simulatedTimeout = route.timeoutSeconds() > 0;
+            if (simulatedTimeout) {
+                try { Thread.sleep(route.timeoutSeconds() * 1000); } catch (InterruptedException ignored) {}
+            }
+
             // Headers
             for (var h : route.headers().entrySet()) {
                 exchange.getResponseHeaders().add(h.getKey(), resolveTemplate(h.getValue(), context));
             }
 
             // Body
-            var bodyText = resolveTemplate(route.body(), context);
+            var timeoutBody = "{\"error\":\"Request Timeout\",\"timeoutSeconds\":" + route.timeoutSeconds() + "}";
+            var rawBody = simulatedTimeout ? (route.body() != null ? route.body() : timeoutBody) : route.body();
+            var bodyText = resolveTemplate(rawBody, context);
             var body = bodyText != null ? bodyText.getBytes(StandardCharsets.UTF_8) : new byte[0];
-            exchange.sendResponseHeaders(route.statusCode(), body.length > 0 ? body.length : -1);
+            exchange.sendResponseHeaders(responseStatus, body.length > 0 ? body.length : -1);
             if (body.length > 0) {
                 exchange.getResponseBody().write(body);
             }
 
-            logRequest(method, path, route.statusCode(), true);
-            log.debug("{} {} -> {} (matched: {})", method, path, route.statusCode(), route.description());
+            logRequest(method, path, responseStatus, true);
+            log.debug("{} {} -> {} (matched: {})", method, path, responseStatus, route.description());
         } else {
             // Nenhuma rota encontrada
             var notFound = """
@@ -199,6 +223,18 @@ public class MockServerService {
         while (requestLogs.size() > MAX_LOGS) {
             requestLogs.removeFirst();
         }
+    }
+
+    private int resolveResponseStatus(MockRoute route) {
+        if (route.timeoutSeconds() > 0) return 408;
+
+        var scenario = route.scenarioStatusCodes() != null ? route.scenarioStatusCodes() : List.<Integer>of();
+        if (scenario.isEmpty()) return route.statusCode();
+
+        var counter = scenarioCounters.computeIfAbsent(route.routeKey(), k -> new AtomicInteger(0));
+        int index = counter.getAndIncrement();
+        int bounded = Math.min(index, scenario.size() - 1);
+        return scenario.get(bounded);
     }
 
     private TemplateContext buildTemplateContext(HttpExchange exchange, MockRoute route, String requestPath) {

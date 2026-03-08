@@ -2,7 +2,9 @@ package com.hidariapi.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -15,6 +17,8 @@ import java.util.Map;
  * @param headers    headers da resposta
  * @param body       body da resposta
  * @param delay      delay em ms antes de responder (simular latencia)
+ * @param timeoutSeconds timeout simulado (em segundos) antes de retornar 408
+ * @param scenarioStatusCodes sequencia de status para respostas stateful (ex: 500,500,200)
  * @param description descricao curta da rota
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
@@ -25,6 +29,8 @@ public record MockRoute(
         Map<String, String> headers,
         String body,
         long delay,
+        long timeoutSeconds,
+        List<Integer> scenarioStatusCodes,
         String description
 ) {
 
@@ -32,31 +38,42 @@ public record MockRoute(
     public static MockRoute json(HttpMethod method, String path, String body) {
         var headers = new LinkedHashMap<String, String>();
         headers.put("Content-Type", "application/json");
-        return new MockRoute(method, path, 200, headers, body, 0, null);
+        return new MockRoute(method, path, 200, headers, body, 0, 0, List.of(), null);
     }
 
     /** Cria rota com status customizado. */
     public static MockRoute withStatus(HttpMethod method, String path, int status, String body) {
         var headers = new LinkedHashMap<String, String>();
         headers.put("Content-Type", "application/json");
-        return new MockRoute(method, path, status, headers, body, 0, null);
+        return new MockRoute(method, path, status, headers, body, 0, 0, List.of(), null);
     }
 
     /** Retorna copia com header adicionado. */
     public MockRoute withHeader(String key, String value) {
         var h = new LinkedHashMap<>(headers);
         h.put(key, value);
-        return new MockRoute(method, path, statusCode, h, body, delay, description);
+        return new MockRoute(method, path, statusCode, h, body, delay, timeoutSeconds, scenarioStatusCodes, description);
     }
 
     /** Retorna copia com delay. */
     public MockRoute withDelay(long delayMs) {
-        return new MockRoute(method, path, statusCode, headers, body, delayMs, description);
+        return new MockRoute(method, path, statusCode, headers, body, delayMs, timeoutSeconds, scenarioStatusCodes, description);
+    }
+
+    /** Retorna copia com timeout simulado em segundos. */
+    public MockRoute withTimeoutSeconds(long timeoutSeconds) {
+        return new MockRoute(method, path, statusCode, headers, body, delay, timeoutSeconds, scenarioStatusCodes, description);
+    }
+
+    /** Retorna copia com scenario stateful (sequencia de status). */
+    public MockRoute withScenarioStatusCodes(List<Integer> statuses) {
+        return new MockRoute(method, path, statusCode, headers, body, delay, timeoutSeconds,
+                statuses != null ? new ArrayList<>(statuses) : List.of(), description);
     }
 
     /** Retorna copia com descricao. */
     public MockRoute withDescription(String desc) {
-        return new MockRoute(method, path, statusCode, headers, body, delay, desc);
+        return new MockRoute(method, path, statusCode, headers, body, delay, timeoutSeconds, scenarioStatusCodes, desc);
     }
 
     /** Chave unica: METHOD + path. */

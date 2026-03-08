@@ -49,7 +49,8 @@ public class LocalizedHelpRenderer extends LocalizedSupport {
                         item("delete <url> [--param ...]", "Envia DELETE.", "Sends DELETE."),
                         item("head <url>", "Envia HEAD.", "Sends HEAD."),
                         item("options <url>", "Envia OPTIONS.", "Sends OPTIONS."),
-                        item("send <method> <url> [--header ...] [--body ...]", "Request customizado.", "Custom request.")
+                        item("send <method> <url> [--header ...] [--body ...]", "Request customizado.", "Custom request."),
+                        item("bench <url> [--method] [--calls] [--concurrency] [--warmup]", "Benchmark dedicado com RPS e percentis.", "Dedicated benchmark with RPS and percentiles.")
                 ),
                 section("Resposta", "Response",
                         item("response", "Mostra a resposta completa.", "Shows full response."),
@@ -95,8 +96,8 @@ public class LocalizedHelpRenderer extends LocalizedSupport {
                 ),
                 section("Mock Server", "Mock Server",
                         item("mock-start [--port 8089] / mock-stop / mock-status", "Controla servidor mock.", "Controls mock server."),
-                        item("mock-add <method> <path> [--status --body --header --delay --desc]", "Adiciona rota.", "Adds route."),
-                        item("mock-add-json <method> <path> --body '{...}'", "Atalho para rota JSON.", "Shortcut for JSON route."),
+                        item("mock-add <method> <path> [--status --body --header --delay --timeout-config --scenario --desc]", "Adiciona rota.", "Adds route."),
+                        item("mock-add-json <method> <path> --body '{...}' [--timeout-config --scenario]", "Atalho para rota JSON.", "Shortcut for JSON route."),
                         item("mock-add-crud <basePath>", "Cria CRUD completo.", "Creates full CRUD."),
                         item("mock-from-response <path> [--method GET]", "Cria rota da ultima resposta.", "Creates route from last response."),
                         item("mock-list / mock-show <i> / mock-edit <i> ...", "Lista, mostra e edita rotas.", "Lists, shows and edits routes."),

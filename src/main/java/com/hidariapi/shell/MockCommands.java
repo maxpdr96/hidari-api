@@ -93,12 +93,14 @@ public class MockCommands extends LocalizedSupport {
             @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
                     help = "Headers (formato Key:Value, multiplos separados por ;)") String headers,
             @ShellOption(value = "--delay", defaultValue = "0", help = "Delay em ms antes de responder") long delay,
+            @ShellOption(value = "--timeout-config", defaultValue = "0", help = "Timeout simulado em segundos (responde 408)") long timeoutSeconds,
+            @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Sequencia stateful de status (ex: 500,500,200)") String scenario,
             @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Descricao da rota") String desc) {
 
         var resolvedBody = resolveBody(body);
         var route = new MockRoute(
                 HttpMethod.fromString(method), path, status,
-                parseHeaders(headers), resolvedBody, delay, desc);
+                parseHeaders(headers), resolvedBody, delay, timeoutSeconds, parseScenarioStatuses(scenario), desc);
 
         mockService.addRoute(route);
 
@@ -119,10 +121,14 @@ public class MockCommands extends LocalizedSupport {
             @ShellOption(help = "Path da rota", valueProvider = MockRoutePathValueProvider.class) String path,
             @ShellOption(value = "--body", help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
             @ShellOption(value = "--status", defaultValue = "200", help = "Status code") int status,
+            @ShellOption(value = "--timeout-config", defaultValue = "0", help = "Timeout simulado em segundos (responde 408)") long timeoutSeconds,
+            @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Sequencia stateful de status (ex: 500,500,200)") String scenario,
             @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Descricao") String desc) {
 
         var resolvedBody = resolveBody(body);
-        var route = MockRoute.withStatus(HttpMethod.fromString(method), path, status, resolvedBody);
+        var route = MockRoute.withStatus(HttpMethod.fromString(method), path, status, resolvedBody)
+                .withTimeoutSeconds(timeoutSeconds)
+                .withScenarioStatusCodes(parseScenarioStatuses(scenario));
         if (desc != null) route = route.withDescription(desc);
 
         mockService.addRoute(route);
@@ -193,7 +199,7 @@ public class MockCommands extends LocalizedSupport {
         var route = new MockRoute(
                 HttpMethod.fromString(method), path, lastResponse.statusCode(),
                 headers, lastResponse.body(), 0,
-                t("Criado a partir de resposta real", "Created from real response"));
+                0, java.util.List.of(), t("Criado a partir de resposta real", "Created from real response"));
 
         mockService.addRoute(route);
 
@@ -233,6 +239,8 @@ public class MockCommands extends LocalizedSupport {
             @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
                     help = "Adicionar headers (formato Key:Value, multiplos separados por ;)") String headers,
             @ShellOption(value = "--delay", defaultValue = "-1", help = "Novo delay em ms") long delay,
+            @ShellOption(value = "--timeout-config", defaultValue = "-1", help = "Novo timeout simulado em segundos") long timeoutSeconds,
+            @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Nova sequencia stateful de status (ex: 500,500,200)") String scenario,
             @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Nova descricao") String desc,
             @ShellOption(value = "--method", defaultValue = ShellOption.NULL, help = "Novo metodo HTTP") String method,
             @ShellOption(value = "--path", defaultValue = ShellOption.NULL, help = "Novo path") String path) {
@@ -285,13 +293,25 @@ public class MockCommands extends LocalizedSupport {
             changes.add("delay: " + newDelay + "ms");
         }
 
+        long newTimeout = route.timeoutSeconds();
+        if (timeoutSeconds >= 0) {
+            newTimeout = timeoutSeconds;
+            changes.add(t("timeout: ", "timeout: ") + newTimeout + "s");
+        }
+
+        var newScenario = route.scenarioStatusCodes() != null ? route.scenarioStatusCodes() : java.util.List.<Integer>of();
+        if (scenario != null) {
+            newScenario = parseScenarioStatuses(scenario);
+            changes.add(t("scenario atualizado", "scenario updated"));
+        }
+
         var newDesc = route.description();
         if (desc != null) {
             newDesc = desc;
             changes.add(t("descricao atualizada", "description updated"));
         }
 
-        var updated = new MockRoute(newMethod, newPath, newStatus, newHeaders, newBody, newDelay, newDesc);
+        var updated = new MockRoute(newMethod, newPath, newStatus, newHeaders, newBody, newDelay, newTimeout, newScenario, newDesc);
         mockService.updateRoute(index, updated);
 
         var sb = new StringBuilder();
@@ -349,8 +369,8 @@ public class MockCommands extends LocalizedSupport {
         }
         sb.append("\n\n");
 
-        sb.append(styled(DIM, String.format("  %-4s %-8s %-6s %-30s %-5s %s%n",
-                "#", t("METODO", "METHOD"), "STATUS", "PATH", t("ATRASO", "DELAY"), t("DESCRICAO", "DESCRIPTION"))));
+        sb.append(styled(DIM, String.format("  %-4s %-8s %-6s %-26s %-7s %-7s %s%n",
+                "#", t("METODO", "METHOD"), "STATUS", "PATH", t("ATRASO", "DELAY"), "TIMEOUT", t("DESCRICAO", "DESCRIPTION"))));
         sb.append(styled(DIM, "  " + "-".repeat(90) + "\n"));
 
         for (int i = 0; i < routes.size(); i++) {
@@ -360,8 +380,9 @@ public class MockCommands extends LocalizedSupport {
             sb.append(styled(CYAN, String.format("  %-4d ", i + 1)));
             sb.append(styled(methodStyle, String.format("%-8s ", r.method().name())));
             sb.append(styled(statusColor(r.statusCode()), String.format("%-6d ", r.statusCode())));
-            sb.append(styled(BOLD, String.format("%-30s ", truncate(r.path(), 29))));
-            sb.append(styled(DIM, String.format("%-5s ", r.delay() > 0 ? r.delay() + "ms" : "-")));
+            sb.append(styled(BOLD, String.format("%-26s ", truncate(r.path(), 25))));
+            sb.append(styled(DIM, String.format("%-7s ", r.delay() > 0 ? r.delay() + "ms" : "-")));
+            sb.append(styled(DIM, String.format("%-7s ", r.timeoutSeconds() > 0 ? r.timeoutSeconds() + "s" : "-")));
             sb.append(styled(DIM, r.description() != null ? r.description() : ""));
             sb.append("\n");
         }
@@ -380,6 +401,12 @@ public class MockCommands extends LocalizedSupport {
 
         if (route.delay() > 0) {
             sb.append(styled(DIM, "  " + t("Atraso", "Delay") + ":  ")).append(styled(YELLOW, route.delay() + "ms")).append("\n");
+        }
+        if (route.timeoutSeconds() > 0) {
+            sb.append(styled(DIM, "  " + t("Timeout", "Timeout") + ": ")).append(styled(YELLOW, route.timeoutSeconds() + "s")).append("\n");
+        }
+        if (route.scenarioStatusCodes() != null && !route.scenarioStatusCodes().isEmpty()) {
+            sb.append(styled(DIM, "  " + t("Scenario", "Scenario") + ": ")).append(route.scenarioStatusCodes().toString()).append("\n");
         }
         if (route.description() != null) {
             sb.append(styled(DIM, "  " + t("Descricao", "Desc") + ":   ")).append(route.description()).append("\n");
@@ -463,6 +490,21 @@ public class MockCommands extends LocalizedSupport {
             }
         }
         return body;
+    }
+
+    private java.util.List<Integer> parseScenarioStatuses(String scenario) {
+        if (scenario == null || scenario.isBlank()) return java.util.List.of();
+        var statuses = new java.util.ArrayList<Integer>();
+        for (var part : scenario.split(",")) {
+            var trimmed = part.trim();
+            if (trimmed.isEmpty()) continue;
+            try {
+                statuses.add(Integer.parseInt(trimmed));
+            } catch (NumberFormatException ignored) {
+                // Ignore invalid status chunks to keep command resilient
+            }
+        }
+        return statuses;
     }
 
     private org.jline.utils.AttributedStyle methodColor(HttpMethod method) {

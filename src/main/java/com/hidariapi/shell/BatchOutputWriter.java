@@ -29,6 +29,11 @@ public class BatchOutputWriter {
         payload.put("failed", result.failed());
         payload.put("totalDurationMs", result.totalDurationMs());
         payload.put("averageDurationMs", result.averageDurationMs());
+        payload.put("minDurationMs", result.minDurationMs());
+        payload.put("maxDurationMs", result.maxDurationMs());
+        payload.put("p50DurationMs", result.p50DurationMs());
+        payload.put("p95DurationMs", result.p95DurationMs());
+        payload.put("p99DurationMs", result.p99DurationMs());
         payload.put("requestTemplate", request != null ? requestMap(request) : null);
         payload.put("responses", result.calls().stream().map(this::responseMap).toList());
 

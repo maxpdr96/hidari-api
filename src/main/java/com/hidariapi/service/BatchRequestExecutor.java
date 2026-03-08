@@ -6,6 +6,7 @@ import org.springframework.stereotype.Service;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 
 /**
@@ -56,6 +57,45 @@ public class BatchRequestExecutor {
     ) {
         public long averageDurationMs() {
             return callCount > 0 ? totalDurationMs / callCount : 0;
+        }
+
+        public long minDurationMs() {
+            return successfulDurations().stream().min(Comparator.naturalOrder()).orElse(0L);
+        }
+
+        public long maxDurationMs() {
+            return successfulDurations().stream().max(Comparator.naturalOrder()).orElse(0L);
+        }
+
+        public long p50DurationMs() {
+            return percentile(50);
+        }
+
+        public long p95DurationMs() {
+            return percentile(95);
+        }
+
+        public long p99DurationMs() {
+            return percentile(99);
+        }
+
+        public long percentile(int p) {
+            var values = successfulDurations();
+            if (values.isEmpty()) return 0;
+            values.sort(Long::compareTo);
+            int index = (int) Math.ceil((p / 100.0) * values.size()) - 1;
+            index = Math.max(0, Math.min(index, values.size() - 1));
+            return values.get(index);
+        }
+
+        private List<Long> successfulDurations() {
+            var values = new ArrayList<Long>();
+            for (var call : calls) {
+                if (call.response() != null) {
+                    values.add(call.response().duration().toMillis());
+                }
+            }
+            return values;
         }
     }
 
