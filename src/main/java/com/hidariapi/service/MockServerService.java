@@ -174,16 +174,14 @@ public class MockServerService {
             var route = match.get();
             var context = buildTemplateContext(exchange, route, path);
 
-            // Delay simulado
-            if (route.delay() > 0) {
+            boolean simulatedTimeout = shouldSimulateTimeout(route);
+            if (simulatedTimeout) {
+                try { Thread.sleep(route.timeoutSeconds() * 1000); } catch (InterruptedException ignored) {}
+            } else if (route.delay() > 0) {
                 try { Thread.sleep(route.delay()); } catch (InterruptedException ignored) {}
             }
 
-            int responseStatus = resolveResponseStatus(route);
-            boolean simulatedTimeout = route.timeoutSeconds() > 0;
-            if (simulatedTimeout) {
-                try { Thread.sleep(route.timeoutSeconds() * 1000); } catch (InterruptedException ignored) {}
-            }
+            int responseStatus = simulatedTimeout ? 408 : resolveResponseStatus(route);
 
             // Headers
             for (var h : route.headers().entrySet()) {
@@ -226,8 +224,6 @@ public class MockServerService {
     }
 
     private int resolveResponseStatus(MockRoute route) {
-        if (route.timeoutSeconds() > 0) return 408;
-
         var scenario = route.scenarioStatusCodes() != null ? route.scenarioStatusCodes() : List.<Integer>of();
         if (scenario.isEmpty()) return route.statusCode();
 
@@ -235,6 +231,12 @@ public class MockServerService {
         int index = counter.getAndIncrement();
         int bounded = Math.min(index, scenario.size() - 1);
         return scenario.get(bounded);
+    }
+
+    private boolean shouldSimulateTimeout(MockRoute route) {
+        if (route.timeoutSeconds() <= 0) return false;
+        long timeoutMs = route.timeoutSeconds() * 1000;
+        return route.delay() > timeoutMs;
     }
 
     private TemplateContext buildTemplateContext(HttpExchange exchange, MockRoute route, String requestPath) {

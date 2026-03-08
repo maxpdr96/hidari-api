@@ -17,7 +17,7 @@ import java.util.Map;
  * @param headers    headers da resposta
  * @param body       body da resposta
  * @param delay      delay em ms antes de responder (simular latencia)
- * @param timeoutSeconds timeout simulado (em segundos) antes de retornar 408
+ * @param timeoutSeconds limite de timeout em segundos; se delay ultrapassar, retorna 408
  * @param scenarioStatusCodes sequencia de status para respostas stateful (ex: 500,500,200)
  * @param description descricao curta da rota
  */
@@ -60,7 +60,7 @@ public record MockRoute(
         return new MockRoute(method, path, statusCode, headers, body, delayMs, timeoutSeconds, scenarioStatusCodes, description);
     }
 
-    /** Retorna copia com timeout simulado em segundos. */
+    /** Retorna copia com limite de timeout em segundos. */
     public MockRoute withTimeoutSeconds(long timeoutSeconds) {
         return new MockRoute(method, path, statusCode, headers, body, delay, timeoutSeconds, scenarioStatusCodes, description);
     }

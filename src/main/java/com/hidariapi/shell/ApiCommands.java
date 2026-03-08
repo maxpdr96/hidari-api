@@ -74,9 +74,11 @@ public class ApiCommands extends LocalizedSupport {
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
                     help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--parallel", defaultValue = "1",
+                    help = "Numero de chamadas em paralelo") int parallelism,
             @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
                     help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.GET, appendParams(url, params)), callCount, outputFile);
+        return executeRequest(ApiRequest.of(null, HttpMethod.GET, appendParams(url, params)), callCount, parallelism, outputFile);
     }
 
     @ShellMethod(key = "post", value = "Envia requisicao POST com body JSON")
@@ -88,13 +90,15 @@ public class ApiCommands extends LocalizedSupport {
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
                     help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--parallel", defaultValue = "1",
+                    help = "Numero de chamadas em paralelo") int parallelism,
             @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
                     help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.POST, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
-        return executeRequest(req, callCount, outputFile);
+        return executeRequest(req, callCount, parallelism, outputFile);
     }
 
     @ShellMethod(key = "put", value = "Envia requisicao PUT com body JSON")
@@ -106,13 +110,15 @@ public class ApiCommands extends LocalizedSupport {
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
                     help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--parallel", defaultValue = "1",
+                    help = "Numero de chamadas em paralelo") int parallelism,
             @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
                     help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.PUT, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
-        return executeRequest(req, callCount, outputFile);
+        return executeRequest(req, callCount, parallelism, outputFile);
     }
 
     @ShellMethod(key = "patch", value = "Envia requisicao PATCH com body JSON")
@@ -124,13 +130,15 @@ public class ApiCommands extends LocalizedSupport {
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
                     help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--parallel", defaultValue = "1",
+                    help = "Numero de chamadas em paralelo") int parallelism,
             @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
                     help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.PATCH, appendParams(url, params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
-        return executeRequest(req, callCount, outputFile);
+        return executeRequest(req, callCount, parallelism, outputFile);
     }
 
     @ShellMethod(key = "delete", value = "Envia requisicao DELETE")
@@ -140,9 +148,11 @@ public class ApiCommands extends LocalizedSupport {
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
                     help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--parallel", defaultValue = "1",
+                    help = "Numero de chamadas em paralelo") int parallelism,
             @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
                     help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.DELETE, appendParams(url, params)), callCount, outputFile);
+        return executeRequest(ApiRequest.of(null, HttpMethod.DELETE, appendParams(url, params)), callCount, parallelism, outputFile);
     }
 
     @ShellMethod(key = "head", value = "Envia requisicao HEAD (retorna apenas headers)")
@@ -150,9 +160,11 @@ public class ApiCommands extends LocalizedSupport {
             @ShellOption(help = "URL") String url,
             @ShellOption(value = "--call", defaultValue = "1",
                     help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--parallel", defaultValue = "1",
+                    help = "Numero de chamadas em paralelo") int parallelism,
             @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
                     help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.HEAD, url), callCount, outputFile);
+        return executeRequest(ApiRequest.of(null, HttpMethod.HEAD, url), callCount, parallelism, outputFile);
     }
 
     @ShellMethod(key = "options", value = "Envia requisicao OPTIONS")
@@ -160,9 +172,11 @@ public class ApiCommands extends LocalizedSupport {
             @ShellOption(help = "URL") String url,
             @ShellOption(value = "--call", defaultValue = "1",
                     help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--parallel", defaultValue = "1",
+                    help = "Numero de chamadas em paralelo") int parallelism,
             @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
                     help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
-        return executeRequest(ApiRequest.of(null, HttpMethod.OPTIONS, url), callCount, outputFile);
+        return executeRequest(ApiRequest.of(null, HttpMethod.OPTIONS, url), callCount, parallelism, outputFile);
     }
 
     @ShellMethod(key = "send", value = "Envia request customizado (metodo, url, headers, body)")
@@ -177,6 +191,8 @@ public class ApiCommands extends LocalizedSupport {
                     help = "Query params (formato key=value, multiplos separados por &)") String params,
             @ShellOption(value = "--call", defaultValue = "1",
                     help = "Numero de chamadas sequenciais") int callCount,
+            @ShellOption(value = "--parallel", defaultValue = "1",
+                    help = "Numero de chamadas em paralelo") int parallelism,
             @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
                     help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.fromString(method), appendParams(url, params));
@@ -190,7 +206,7 @@ public class ApiCommands extends LocalizedSupport {
         }
         req = resolveAndSetBody(req, body);
         if (req == null) return styled(RED, t("Erro ao ler body do arquivo.", "Error reading body from file."));
-        return executeRequest(req, callCount, outputFile);
+        return executeRequest(req, callCount, parallelism, outputFile);
     }
 
     @ShellMethod(key = "bench", value = "Benchmark endpoint with calls/concurrency/warmup and latency percentiles")
@@ -565,27 +581,32 @@ public class ApiCommands extends LocalizedSupport {
     // ========== FORMATTING =================================================
 
     private String executeRequest(ApiRequest request) {
-        return executeRequest(request, 1, null);
+        return executeRequest(request, 1, 1, null);
     }
 
     private String executeRequest(ApiRequest request, int callCount) {
-        return executeRequest(request, callCount, null);
+        return executeRequest(request, callCount, 1, null);
     }
 
-    private String executeRequest(ApiRequest request, int callCount, String outputFile) {
+    private String executeRequest(ApiRequest request, int callCount, int parallelism, String outputFile) {
         if (callCount <= 0) {
             return styled(RED, t("O valor de --call deve ser maior que 0.", "--call must be greater than 0."));
+        }
+        if (parallelism <= 0) {
+            return styled(RED, t("O valor de --parallel deve ser maior que 0.", "--parallel must be greater than 0."));
         }
         if (callCount == 1 && outputFile == null) {
             return executeSingleRequest(request);
         }
 
-        var result = batchRequestExecutor.execute(request, callCount);
+        var effectiveParallelism = Math.min(parallelism, callCount);
+        var result = batchRequestExecutor.execute(request, callCount, effectiveParallelism);
 
         var sb = new StringBuilder();
         sb.append(styled(BOLD_CYAN, "\n  " + t("Execucao multipla", "Multiple execution") + "\n\n"));
         sb.append(styled(DIM, "  " + request.method() + " " + request.url() + "  |  "));
-        sb.append(styled(CYAN, t("chamadas", "calls") + ": " + callCount + "\n\n"));
+        sb.append(styled(CYAN, t("chamadas", "calls") + ": " + callCount + "  |  "
+                + t("paralelo", "parallel") + ": " + effectiveParallelism + "\n\n"));
 
         for (var call : result.calls()) {
             if (call.response() != null) {

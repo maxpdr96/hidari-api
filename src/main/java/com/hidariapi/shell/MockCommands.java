@@ -93,7 +93,7 @@ public class MockCommands extends LocalizedSupport {
             @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
                     help = "Headers (formato Key:Value, multiplos separados por ;)") String headers,
             @ShellOption(value = "--delay", defaultValue = "0", help = "Delay em ms antes de responder") long delay,
-            @ShellOption(value = "--timeout-config", defaultValue = "0", help = "Timeout simulado em segundos (responde 408)") long timeoutSeconds,
+            @ShellOption(value = "--timeout-config", defaultValue = "0", help = "Limite de timeout em segundos (retorna 408 se exceder)") long timeoutSeconds,
             @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Sequencia stateful de status (ex: 500,500,200)") String scenario,
             @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Descricao da rota") String desc) {
 
@@ -121,7 +121,7 @@ public class MockCommands extends LocalizedSupport {
             @ShellOption(help = "Path da rota", valueProvider = MockRoutePathValueProvider.class) String path,
             @ShellOption(value = "--body", help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
             @ShellOption(value = "--status", defaultValue = "200", help = "Status code") int status,
-            @ShellOption(value = "--timeout-config", defaultValue = "0", help = "Timeout simulado em segundos (responde 408)") long timeoutSeconds,
+            @ShellOption(value = "--timeout-config", defaultValue = "0", help = "Limite de timeout em segundos (retorna 408 se exceder)") long timeoutSeconds,
             @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Sequencia stateful de status (ex: 500,500,200)") String scenario,
             @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Descricao") String desc) {
 
@@ -239,7 +239,7 @@ public class MockCommands extends LocalizedSupport {
             @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
                     help = "Adicionar headers (formato Key:Value, multiplos separados por ;)") String headers,
             @ShellOption(value = "--delay", defaultValue = "-1", help = "Novo delay em ms") long delay,
-            @ShellOption(value = "--timeout-config", defaultValue = "-1", help = "Novo timeout simulado em segundos") long timeoutSeconds,
+            @ShellOption(value = "--timeout-config", defaultValue = "-1", help = "Novo limite de timeout em segundos") long timeoutSeconds,
             @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Nova sequencia stateful de status (ex: 500,500,200)") String scenario,
             @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Nova descricao") String desc,
             @ShellOption(value = "--method", defaultValue = ShellOption.NULL, help = "Novo metodo HTTP") String method,
@@ -296,7 +296,7 @@ public class MockCommands extends LocalizedSupport {
         long newTimeout = route.timeoutSeconds();
         if (timeoutSeconds >= 0) {
             newTimeout = timeoutSeconds;
-            changes.add(t("timeout: ", "timeout: ") + newTimeout + "s");
+            changes.add(t("timeout-config: ", "timeout-config: ") + newTimeout + "s");
         }
 
         var newScenario = route.scenarioStatusCodes() != null ? route.scenarioStatusCodes() : java.util.List.<Integer>of();
@@ -403,7 +403,7 @@ public class MockCommands extends LocalizedSupport {
             sb.append(styled(DIM, "  " + t("Atraso", "Delay") + ":  ")).append(styled(YELLOW, route.delay() + "ms")).append("\n");
         }
         if (route.timeoutSeconds() > 0) {
-            sb.append(styled(DIM, "  " + t("Timeout", "Timeout") + ": ")).append(styled(YELLOW, route.timeoutSeconds() + "s")).append("\n");
+            sb.append(styled(DIM, "  " + t("Timeout-config", "Timeout-config") + ": ")).append(styled(YELLOW, route.timeoutSeconds() + "s")).append("\n");
         }
         if (route.scenarioStatusCodes() != null && !route.scenarioStatusCodes().isEmpty()) {
             sb.append(styled(DIM, "  " + t("Scenario", "Scenario") + ": ")).append(route.scenarioStatusCodes().toString()).append("\n");

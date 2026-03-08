@@ -89,13 +89,13 @@ Each HTTP method has its own command.
 
 | Comando / Command | O que faz / What it does |
 |---------|-----------|
-| `get <url> [--param ...] [--call N] [--output file.json]` | Envia GET (simples ou em lote) / Sends GET (single or batch) |
-| `post <url> --body ... [--param ...] [--call N] [--output file.json]` | Envia POST com body JSON / Sends POST with JSON body |
-| `put <url> --body ... [--param ...] [--call N] [--output file.json]` | Envia PUT com body JSON / Sends PUT with JSON body |
-| `patch <url> --body ... [--param ...] [--call N] [--output file.json]` | Envia PATCH com body JSON / Sends PATCH with JSON body |
-| `delete <url> [--param ...] [--call N] [--output file.json]` | Envia DELETE / Sends DELETE |
-| `head <url> [--call N] [--output file.json]` | Envia HEAD (retorna so headers / returns headers only) |
-| `options <url> [--call N] [--output file.json]` | Envia OPTIONS / Sends OPTIONS |
+| `get <url> [--param ...] [--call N] [--parallel P] [--output file.json]` | Envia GET (simples ou em lote) / Sends GET (single or batch) |
+| `post <url> --body ... [--param ...] [--call N] [--parallel P] [--output file.json]` | Envia POST com body JSON / Sends POST with JSON body |
+| `put <url> --body ... [--param ...] [--call N] [--parallel P] [--output file.json]` | Envia PUT com body JSON / Sends PUT with JSON body |
+| `patch <url> --body ... [--param ...] [--call N] [--parallel P] [--output file.json]` | Envia PATCH com body JSON / Sends PATCH with JSON body |
+| `delete <url> [--param ...] [--call N] [--parallel P] [--output file.json]` | Envia DELETE / Sends DELETE |
+| `head <url> [--call N] [--parallel P] [--output file.json]` | Envia HEAD (retorna so headers / returns headers only) |
+| `options <url> [--call N] [--parallel P] [--output file.json]` | Envia OPTIONS / Sends OPTIONS |
 
 #### Exemplos / Examples
 
@@ -118,21 +118,24 @@ delete https://jsonplaceholder.typicode.com/posts/1
 
 ---
 
-### Execucao em lote (--call) e export (--output)
+### Execucao em lote (--call), paralelo (--parallel) e export (--output)
 
-Rode o mesmo request varias vezes com `--call`. Opcionalmente, salve **todas** as respostas em JSON com `--output`.
+Rode o mesmo request varias vezes com `--call`, controlando concorrencia com `--parallel`. Opcionalmente, salve **todas** as respostas em JSON com `--output`.
 
-Run the same request multiple times with `--call`. Optionally save **all** responses to JSON with `--output`.
+Run the same request multiple times with `--call`, controlling concurrency with `--parallel`. Optionally save **all** responses to JSON with `--output`.
 
 ```bash
 # chama 10x / calls 10x
 get https://api.com/health --call 10
 
+# chama 10x com 5 em paralelo / calls 10x with 5 in parallel
+get https://api.com/health --call 10 --parallel 5
+
 # salva todas as chamadas em JSON / saves all calls to JSON
-get https://api.com/health --call 10 --output resultado.json
+get https://api.com/health --call 10 --parallel 5 --output resultado.json
 
 # caminho absoluto com @ / absolute path with @
-get https://api.com/health --call 10 --output @/home/user/resultados/batch.json
+get https://api.com/health --call 10 --parallel 5 --output @/home/user/resultados/batch.json
 ```
 
 O resumo em tela inclui latencia `p50`, `p95`, `p99`, `min`, `max` e media.
@@ -531,7 +534,7 @@ mock-add-json POST /api/login --body '{"token":"eyJhbGci...","expiresIn":3600}' 
 mock-add-json GET /api/products --body @produtos.json
 
 # com timeout simulado (408 apos 2s) / with simulated timeout (408 after 2s)
-mock-add-json GET /api/slow --body '{"error":"timeout"}' --timeout-config 2
+mock-add-json GET /api/slow --body '{"error":"timeout"}' --delay 5000 --timeout-config 2
 
 # rota stateful por status / stateful status sequence
 mock-add-json GET /api/state --body '{"ok":true}' --scenario 500,500,200
@@ -550,7 +553,7 @@ mock-add GET /api/error --status 500 --body '{"error":"Internal Server Error"}'
 mock-add GET /api/data --status 200 --body '{"data":[]}' --header "X-RateLimit:100;X-Request-Id:abc"
 
 # timeout por rota (segundos) / per-route timeout (seconds)
-mock-add GET /api/timeout --timeout-config 2 --body '{"error":"Request Timeout"}'
+mock-add GET /api/timeout --delay 5000 --timeout-config 2 --body '{"error":"Request Timeout"}'
 
 # cenario stateful / stateful scenario
 mock-add GET /api/order --body '{"order":"created"}' --scenario 500,200
@@ -661,7 +664,7 @@ mock-edit 1 --status 201 --body '{"created":true}' --delay 100 --header "X-Custo
 | `--body <JSON\|@file>` | Altera o body (inline ou arquivo) / Changes the body (inline or file) |
 | `--header <K:V;...>` | Adiciona/atualiza headers / Adds/updates headers |
 | `--delay <ms>` | Altera o delay em ms / Changes the delay in ms |
-| `--timeout-config <s>` | Simula timeout e responde 408 apos N segundos / Simulates timeout and returns 408 after N seconds |
+| `--timeout-config <s>` | Simula timeout e responde 408 se o tempo ultrapassar N segundos / Simulates timeout and returns 408 if elapsed time exceeds N seconds |
 | `--scenario <s1,s2,...>` | Sequencia de status stateful por chamada / Stateful status sequence per call |
 | `--desc <texto>` | Altera a descricao / Changes the description |
 | `--method <METHOD>` | Altera o metodo HTTP / Changes the HTTP method |
@@ -862,14 +865,14 @@ They are simple JSON files — you can edit them manually if you want.
 
 | Comando / Command | Descricao / Description |
 |---------|-----------|
-| `get <url> [--param ...] [--call N] [--output file]` | GET request |
-| `post <url> [--body ...] [--param ...] [--call N] [--output file]` | POST request |
-| `put <url> [--body ...] [--param ...] [--call N] [--output file]` | PUT request |
-| `patch <url> [--body ...] [--param ...] [--call N] [--output file]` | PATCH request |
-| `delete <url> [--param ...] [--call N] [--output file]` | DELETE request |
-| `head <url> [--call N] [--output file]` | HEAD request |
-| `options <url> [--call N] [--output file]` | OPTIONS request |
-| `send <METHOD> <url> [--header ...] [--body ...] [--param ...] [--call N] [--output file]` | Request customizado / Custom request |
+| `get <url> [--param ...] [--call N] [--parallel P] [--output file]` | GET request |
+| `post <url> [--body ...] [--param ...] [--call N] [--parallel P] [--output file]` | POST request |
+| `put <url> [--body ...] [--param ...] [--call N] [--parallel P] [--output file]` | PUT request |
+| `patch <url> [--body ...] [--param ...] [--call N] [--parallel P] [--output file]` | PATCH request |
+| `delete <url> [--param ...] [--call N] [--parallel P] [--output file]` | DELETE request |
+| `head <url> [--call N] [--parallel P] [--output file]` | HEAD request |
+| `options <url> [--call N] [--parallel P] [--output file]` | OPTIONS request |
+| `send <METHOD> <url> [--header ...] [--body ...] [--param ...] [--call N] [--parallel P] [--output file]` | Request customizado / Custom request |
 | `bench <url> [--method] [--header] [--body] [--calls] [--concurrency] [--warmup]` | Benchmark dedicado / Dedicated benchmark |
 | `import-curl "<cmd>" [--save col:name] [--dry-run]` | Importar cURL / Import cURL |
 

@@ -8,6 +8,11 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * Executes the same request multiple times and aggregates results.
@@ -22,6 +27,17 @@ public class BatchRequestExecutor {
     }
 
     public BatchExecutionResult execute(ApiRequest request, int callCount) {
+        return execute(request, callCount, 1);
+    }
+
+    public BatchExecutionResult execute(ApiRequest request, int callCount, int parallelism) {
+        if (parallelism <= 1 || callCount <= 1) {
+            return executeSequential(request, callCount);
+        }
+        return executeParallel(request, callCount, parallelism);
+    }
+
+    private BatchExecutionResult executeSequential(ApiRequest request, int callCount) {
         var startedAt = Instant.now();
         int success = 0;
         int failed = 0;
@@ -31,12 +47,11 @@ public class BatchRequestExecutor {
         for (int i = 1; i <= callCount; i++) {
             try {
                 var response = apiService.execute(request);
-                var executedRequest = apiService.getLastRequest() != null ? apiService.getLastRequest() : request;
                 boolean ok = response.statusCode() < 400;
                 if (ok) success++;
                 else failed++;
                 totalMs += response.duration().toMillis();
-                calls.add(CallResult.success(i, Instant.now(), executedRequest, response));
+                calls.add(CallResult.success(i, Instant.now(), request, response));
             } catch (Exception e) {
                 failed++;
                 calls.add(CallResult.failure(i, Instant.now(), request, e.getMessage()));
@@ -44,6 +59,61 @@ public class BatchRequestExecutor {
         }
 
         return new BatchExecutionResult(startedAt, Instant.now(), callCount, success, failed, totalMs, calls);
+    }
+
+    private BatchExecutionResult executeParallel(ApiRequest request, int callCount, int parallelism) {
+        var startedAt = Instant.now();
+        var executor = Executors.newFixedThreadPool(Math.min(parallelism, callCount));
+        var futures = new ArrayList<Future<CallResult>>(callCount);
+        try {
+            for (int i = 1; i <= callCount; i++) {
+                final int index = i;
+                Callable<CallResult> task = () -> executeCall(index, request);
+                futures.add(executor.submit(task));
+            }
+
+            var calls = new ArrayList<CallResult>(callCount);
+            int success = 0;
+            int failed = 0;
+            long totalMs = 0;
+            for (var future : futures) {
+                try {
+                    var call = future.get();
+                    calls.add(call);
+                    if (call.response() != null && call.response().statusCode() < 400) {
+                        success++;
+                        totalMs += call.response().duration().toMillis();
+                    } else if (call.response() != null) {
+                        failed++;
+                        totalMs += call.response().duration().toMillis();
+                    } else {
+                        failed++;
+                    }
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    failed++;
+                    calls.add(CallResult.failure(calls.size() + 1, Instant.now(), request, e.getMessage()));
+                } catch (ExecutionException e) {
+                    failed++;
+                    var message = e.getCause() != null ? e.getCause().getMessage() : e.getMessage();
+                    calls.add(CallResult.failure(calls.size() + 1, Instant.now(), request, message));
+                }
+            }
+
+            calls.sort(Comparator.comparingInt(CallResult::index));
+            return new BatchExecutionResult(startedAt, Instant.now(), callCount, success, failed, totalMs, calls);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private CallResult executeCall(int index, ApiRequest request) {
+        try {
+            var response = apiService.execute(request);
+            return CallResult.success(index, Instant.now(), request, response);
+        } catch (Exception e) {
+            return CallResult.failure(index, Instant.now(), request, e.getMessage());
+        }
     }
 
     public record BatchExecutionResult(

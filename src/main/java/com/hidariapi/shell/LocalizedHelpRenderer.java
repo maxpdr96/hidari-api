@@ -42,14 +42,14 @@ public class LocalizedHelpRenderer extends LocalizedSupport {
     private List<HelpSection> buildSections() {
         return List.of(
                 section("Requisicoes HTTP", "HTTP Requests",
-                        item("get <url> [--param k=v&a=b]", "Envia GET.", "Sends GET."),
-                        item("post <url> --body '{...}' [--param ...]", "Envia POST JSON.", "Sends JSON POST."),
-                        item("put <url> --body '{...}' [--param ...]", "Envia PUT JSON.", "Sends JSON PUT."),
-                        item("patch <url> --body '{...}' [--param ...]", "Envia PATCH JSON.", "Sends JSON PATCH."),
-                        item("delete <url> [--param ...]", "Envia DELETE.", "Sends DELETE."),
-                        item("head <url>", "Envia HEAD.", "Sends HEAD."),
-                        item("options <url>", "Envia OPTIONS.", "Sends OPTIONS."),
-                        item("send <method> <url> [--header ...] [--body ...]", "Request customizado.", "Custom request."),
+                        item("get <url> [--param k=v&a=b] [--call N --parallel P --output arquivo]", "Envia GET.", "Sends GET."),
+                        item("post <url> --body '{...}' [--param ...] [--call N --parallel P --output arquivo]", "Envia POST JSON.", "Sends JSON POST."),
+                        item("put <url> --body '{...}' [--param ...] [--call N --parallel P --output arquivo]", "Envia PUT JSON.", "Sends JSON PUT."),
+                        item("patch <url> --body '{...}' [--param ...] [--call N --parallel P --output arquivo]", "Envia PATCH JSON.", "Sends JSON PATCH."),
+                        item("delete <url> [--param ...] [--call N --parallel P --output arquivo]", "Envia DELETE.", "Sends DELETE."),
+                        item("head <url> [--call N --parallel P --output arquivo]", "Envia HEAD.", "Sends HEAD."),
+                        item("options <url> [--call N --parallel P --output arquivo]", "Envia OPTIONS.", "Sends OPTIONS."),
+                        item("send <method> <url> [--header ...] [--body ...] [--call N --parallel P --output arquivo]", "Request customizado.", "Custom request."),
                         item("bench <url> [--method] [--calls] [--concurrency] [--warmup]", "Benchmark dedicado com RPS e percentis.", "Dedicated benchmark with RPS and percentiles.")
                 ),
                 section("Resposta", "Response",

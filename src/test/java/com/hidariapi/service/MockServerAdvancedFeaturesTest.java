@@ -37,7 +37,7 @@ class MockServerAdvancedFeaturesTest {
     }
 
     @Test
-    void timeoutConfigReturns408AfterConfiguredSeconds() throws Exception {
+    void timeoutConfigReturns408WhenDelayExceedsConfiguredLimit() throws Exception {
         int port;
         try (var socket = new ServerSocket(0)) {
             port = socket.getLocalPort();
@@ -49,7 +49,7 @@ class MockServerAdvancedFeaturesTest {
                 200,
                 Map.of("Content-Type", "application/json"),
                 "{\"error\":\"timeout\"}",
-                0,
+                2000,
                 1,
                 List.of(),
                 "slow with timeout"
@@ -66,6 +66,38 @@ class MockServerAdvancedFeaturesTest {
 
         assertEquals(408, res.statusCode());
         assertTrue(elapsedMs >= 900);
+    }
+
+    @Test
+    void delayAddsLatencyWithoutTimeoutWhenBelowLimit() throws Exception {
+        int port;
+        try (var socket = new ServerSocket(0)) {
+            port = socket.getLocalPort();
+        }
+
+        var route = new MockRoute(
+                HttpMethod.GET,
+                "/delayed",
+                200,
+                Map.of("Content-Type", "application/json"),
+                "{\"ok\":true}",
+                300,
+                2,
+                List.of(),
+                "delayed route"
+        );
+        service.addRoute(route);
+        service.start(port);
+
+        var client = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+        var req = HttpRequest.newBuilder().uri(new URI("http://localhost:" + port + "/delayed")).GET().build();
+
+        var start = Instant.now();
+        var res = client.send(req, HttpResponse.BodyHandlers.ofString());
+        var elapsedMs = Duration.between(start, Instant.now()).toMillis();
+
+        assertEquals(200, res.statusCode());
+        assertTrue(elapsedMs >= 250);
     }
 
     @Test
