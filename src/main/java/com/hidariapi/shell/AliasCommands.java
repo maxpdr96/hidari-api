@@ -2,30 +2,43 @@ package com.hidariapi.shell;
 
 import com.hidariapi.service.AliasService;
 import com.hidariapi.service.LanguageService;
-import com.hidariapi.shell.completion.AliasNameValueProvider;
+import com.hidariapi.util.CommandLineTokenizer;
 import org.springframework.beans.factory.ObjectProvider;
-import org.springframework.shell.Input;
-import org.springframework.shell.Shell;
-import org.springframework.shell.standard.ShellComponent;
-import org.springframework.shell.standard.ShellMethod;
-import org.springframework.shell.standard.ShellOption;
+import org.springframework.shell.core.InputReader;
+import org.springframework.shell.core.command.CommandContext;
+import org.springframework.shell.core.command.CommandExecutor;
+import org.springframework.shell.core.command.CommandParser;
+import org.springframework.shell.core.command.CommandRegistry;
+import org.springframework.shell.core.command.annotation.Command;
+import org.springframework.shell.core.command.annotation.Option;
+import org.springframework.stereotype.Component;
 
-@ShellComponent
+import java.io.PrintWriter;
+import java.io.StringWriter;
+import java.util.ArrayList;
+
+@Component
 public class AliasCommands extends LocalizedSupport {
 
     private final AliasService aliasService;
-    private final ObjectProvider<Shell> shellProvider;
+    private final ObjectProvider<CommandParser> commandParserProvider;
+    private final ObjectProvider<CommandRegistry> commandRegistryProvider;
 
-    public AliasCommands(AliasService aliasService, ObjectProvider<Shell> shellProvider, LanguageService lang) {
+    public AliasCommands(
+            AliasService aliasService,
+            ObjectProvider<CommandParser> commandParserProvider,
+            ObjectProvider<CommandRegistry> commandRegistryProvider,
+            LanguageService lang) {
         super(lang);
         this.aliasService = aliasService;
-        this.shellProvider = shellProvider;
+        this.commandParserProvider = commandParserProvider;
+        this.commandRegistryProvider = commandRegistryProvider;
     }
 
-    @ShellMethod(key = "alias-set", value = "Cria/atualiza alias customizado")
+    @Command(name = "alias-set", description = "Cria/atualiza alias customizado")
     public String aliasSet(
-            @ShellOption(help = "Nome do alias") String name,
-            @ShellOption(help = "Comando alvo (use aspas)") String command) {
+            @Option(description = "Nome do alias", required = true) String name,
+            @Option(description = "Comando alvo (use aspas)", required = true) String command) {
         if (name == null || name.isBlank()) return styled(RED, t("Nome do alias invalido.", "Invalid alias name."));
         if (command == null || command.isBlank()) return styled(RED, t("Comando alvo invalido.", "Invalid target command."));
         aliasService.save(name, command);
@@ -33,16 +46,15 @@ public class AliasCommands extends LocalizedSupport {
                 + styled(DIM, " -> " + command);
     }
 
-    @ShellMethod(key = "alias-rm", value = "Remove alias")
-    public String aliasRm(
-            @ShellOption(help = "Nome do alias", valueProvider = AliasNameValueProvider.class) String name) {
+    @Command(name = "alias-rm", description = "Remove alias")
+    public String aliasRm(@Option(description = "Nome do alias", required = true) String name) {
         if (aliasService.remove(name)) {
             return styled(GREEN, t("Alias removido: ", "Alias removed: ") + name);
         }
         return styled(RED, t("Alias nao encontrado: ", "Alias not found: ") + name);
     }
 
-    @ShellMethod(key = "aliases", value = "Lista aliases")
+    @Command(name = "aliases", description = "Lista aliases")
     public String aliases() {
         var list = aliasService.list();
         if (list.isEmpty()) return styled(DIM, t("Nenhum alias configurado.", "No aliases configured."));
@@ -58,10 +70,10 @@ public class AliasCommands extends LocalizedSupport {
         return sb.toString();
     }
 
-    @ShellMethod(key = {"alias-run", "a"}, value = "Executa um alias")
+    @Command(name = "alias-run", alias = "a", description = "Executa um alias")
     public String aliasRun(
-            @ShellOption(help = "Nome do alias", valueProvider = AliasNameValueProvider.class) String name,
-            @ShellOption(value = "--args", defaultValue = ShellOption.NULL, help = "Argumentos extras") String args) {
+            @Option(description = "Nome do alias", required = true) String name,
+            @Option(longName = "args", defaultValue = "", description = "Argumentos extras") String args) {
         var aliasOpt = aliasService.get(name);
         if (aliasOpt.isEmpty()) return styled(RED, t("Alias nao encontrado: ", "Alias not found: ") + name);
 
@@ -72,18 +84,25 @@ public class AliasCommands extends LocalizedSupport {
         }
 
         try {
-            Object result = evaluate(raw);
-            if (result == null) return styled(GREEN, t("Alias executado.", "Alias executed."));
-            return result.toString();
+            var tokens = new ArrayList<>(CommandLineTokenizer.tokenize(raw));
+            if (tokens.isEmpty()) return styled(RED, t("Alias vazio.", "Empty alias."));
+
+            var commandParser = commandParserProvider.getObject();
+            var commandRegistry = commandRegistryProvider.getObject();
+            var parsedInput = commandParser.parse(String.join(" ", tokens));
+            var outputBuffer = new StringWriter();
+            InputReader inputReader = new InputReader() {};
+            var context = new CommandContext(parsedInput, commandRegistry, new PrintWriter(outputBuffer), inputReader);
+            var exitStatus = new CommandExecutor(commandRegistry).execute(context);
+            var out = outputBuffer.toString().trim();
+            if (!out.isBlank()) {
+                return out;
+            }
+            return exitStatus.code() == 0
+                    ? styled(GREEN, t("Alias executado.", "Alias executed."))
+                    : styled(RED, t("Alias falhou.", "Alias failed."));
         } catch (Exception e) {
             return styled(RED, t("Erro ao executar alias: ", "Error executing alias: ") + e.getMessage());
         }
-    }
-
-    private Object evaluate(String raw) throws Exception {
-        var shell = shellProvider.getObject();
-        var method = Shell.class.getDeclaredMethod("evaluate", Input.class);
-        method.setAccessible(true);
-        return method.invoke(shell, (Input) () -> raw);
     }
 }

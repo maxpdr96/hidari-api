@@ -1,15 +1,15 @@
 package com.hidariapi.shell.completion;
 
 import com.hidariapi.service.AliasService;
-import org.springframework.shell.CompletionContext;
-import org.springframework.shell.CompletionProposal;
-import org.springframework.shell.standard.ValueProvider;
+import org.springframework.shell.core.command.completion.CompletionContext;
+import org.springframework.shell.core.command.completion.CompletionProposal;
+import org.springframework.shell.core.command.completion.CompletionProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
-public class AliasNameValueProvider implements ValueProvider {
+public class AliasNameValueProvider implements CompletionProvider {
 
     private final AliasService aliasService;
 
@@ -18,7 +18,7 @@ public class AliasNameValueProvider implements ValueProvider {
     }
 
     @Override
-    public List<CompletionProposal> complete(CompletionContext completionContext) {
+    public List<CompletionProposal> apply(CompletionContext completionContext) {
         var prefix = completionContext.currentWordUpToCursor();
         return aliasService.list().stream()
                 .map(a -> a.name())

@@ -26,6 +26,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * Servico principal que executa requests HTTP e gerencia sessao.
@@ -74,53 +75,25 @@ public class ApiService {
         var context = new TemplateContext(activeEnvironment, lastResponse);
         var resolved = resolveVariables(apiRequest, context);
         lastRequest = resolved;
-
-        var builder = HttpRequest.newBuilder()
-                .uri(URI.create(resolved.url()))
-                .timeout(Duration.ofSeconds(timeoutSeconds));
-
-        // Default headers
-        for (var entry : defaultHeaders.entrySet()) {
-            var value = resolveText(entry.getValue(), context);
-            builder.header(entry.getKey(), value);
-        }
-
-        // Request headers
-        for (var entry : resolved.headers().entrySet()) {
-            builder.header(entry.getKey(), entry.getValue());
-        }
-
-        // Method + body
-        var bodyPublisher = resolved.body() != null && !resolved.body().isBlank()
-                ? HttpRequest.BodyPublishers.ofString(resolved.body())
-                : HttpRequest.BodyPublishers.noBody();
-
-        builder.method(resolved.method().name(), bodyPublisher);
-
+        var httpRequest = buildHttpRequest(resolved, context);
         var start = System.nanoTime();
-        var response = httpClient.send(builder.build(), HttpResponse.BodyHandlers.ofString());
-        var duration = Duration.ofNanos(System.nanoTime() - start);
-
-        // Parse response headers
-        var responseHeaders = new LinkedHashMap<String, String>();
-        response.headers().map().forEach((k, v) -> responseHeaders.put(k, String.join(", ", v)));
-
-        var contentType = responseHeaders.getOrDefault("content-type", "");
-        var body = response.body() != null ? response.body() : "";
-
-        lastResponse = new ApiResponse(
-                response.statusCode(),
-                responseHeaders,
-                body,
-                duration,
-                contentType,
-                body.length()
-        );
+        var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofString());
+        lastResponse = toApiResponse(response, start);
 
         // Salvar no historico
         historyStore.add(SavedRequest.from(apiRequest, lastResponse));
 
         return lastResponse;
+    }
+
+    /** Executes a request asynchronously (used by batch mode). */
+    public CompletableFuture<ApiResponse> executeAsync(ApiRequest apiRequest) {
+        var context = new TemplateContext(activeEnvironment, lastResponse);
+        var resolved = resolveVariables(apiRequest, context);
+        var httpRequest = buildHttpRequest(resolved, context);
+        var start = System.nanoTime();
+        return httpClient.sendAsync(httpRequest, HttpResponse.BodyHandlers.ofString())
+                .thenApply(response -> toApiResponse(response, start));
     }
 
     /** Atalho para GET. */
@@ -342,6 +315,46 @@ public class ApiService {
 
     private String resolveText(String text, TemplateContext context) {
         return TemplateResolver.resolve(text, context.cache(), expr -> resolveExpression(expr, context));
+    }
+
+    private HttpRequest buildHttpRequest(ApiRequest resolved, TemplateContext context) {
+        var builder = HttpRequest.newBuilder()
+                .uri(URI.create(resolved.url()))
+                .timeout(Duration.ofSeconds(timeoutSeconds));
+
+        for (var entry : defaultHeaders.entrySet()) {
+            var value = resolveText(entry.getValue(), context);
+            builder.header(entry.getKey(), value);
+        }
+        for (var entry : resolved.headers().entrySet()) {
+            builder.header(entry.getKey(), entry.getValue());
+        }
+
+        var bodyPublisher = resolved.body() != null && !resolved.body().isBlank()
+                ? HttpRequest.BodyPublishers.ofString(resolved.body())
+                : HttpRequest.BodyPublishers.noBody();
+
+        builder.method(resolved.method().name(), bodyPublisher);
+        return builder.build();
+    }
+
+    private ApiResponse toApiResponse(HttpResponse<String> response, long startNanos) {
+        var duration = Duration.ofNanos(System.nanoTime() - startNanos);
+
+        var responseHeaders = new LinkedHashMap<String, String>();
+        response.headers().map().forEach((k, v) -> responseHeaders.put(k, String.join(", ", v)));
+
+        var contentType = responseHeaders.getOrDefault("content-type", "");
+        var body = response.body() != null ? response.body() : "";
+
+        return new ApiResponse(
+                response.statusCode(),
+                responseHeaders,
+                body,
+                duration,
+                contentType,
+                body.length()
+        );
     }
 
     private String resolveExpression(String expr, TemplateContext context) {

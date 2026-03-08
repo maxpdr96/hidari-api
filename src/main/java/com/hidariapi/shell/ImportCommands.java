@@ -2,14 +2,14 @@ package com.hidariapi.shell;
 
 import com.hidariapi.service.ApiImportService;
 import com.hidariapi.service.LanguageService;
-import org.springframework.shell.standard.ShellComponent;
-import org.springframework.shell.standard.ShellMethod;
-import org.springframework.shell.standard.ShellOption;
+import org.springframework.stereotype.Component;
+import org.springframework.shell.core.command.annotation.Command;
+import org.springframework.shell.core.command.annotation.Option;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-@ShellComponent
+@Component
 public class ImportCommands extends LocalizedSupport {
 
     private final ApiImportService apiImportService;
@@ -19,12 +19,12 @@ public class ImportCommands extends LocalizedSupport {
         this.apiImportService = apiImportService;
     }
 
-    @ShellMethod(key = "import-openapi", value = "Importa OpenAPI/Swagger e gera collection + mocks opcionais")
+    @Command(name = "import-openapi", description = "Importa OpenAPI/Swagger e gera collection + mocks opcionais")
     public String importOpenApi(
-            @ShellOption(help = "Arquivo OpenAPI JSON (use @/abs/path se quiser)") String file,
-            @ShellOption(value = "--collection", defaultValue = ShellOption.NULL, help = "Nome da collection destino") String collection,
-            @ShellOption(value = "--base-url", defaultValue = ShellOption.NULL, help = "Override de base URL") String baseUrl,
-            @ShellOption(value = "--mocks", defaultValue = "true", help = "Gerar mocks iniciais automaticamente") boolean mocks) {
+            @Option(description = "Arquivo OpenAPI JSON (use @/abs/path se quiser)", required = true) String file,
+            @Option(longName = "collection", defaultValue = "", description = "Nome da collection destino") String collection,
+            @Option(longName = "base-url", defaultValue = "", description = "Override de base URL") String baseUrl,
+            @Option(longName = "mocks", defaultValue = "true", description = "Gerar mocks iniciais automaticamente") boolean mocks) {
         try {
             String content = readFile(file);
             var result = apiImportService.importOpenApi(content, collection, baseUrl, mocks);
@@ -39,10 +39,10 @@ public class ImportCommands extends LocalizedSupport {
         }
     }
 
-    @ShellMethod(key = "import-postman", value = "Importa collection do Postman")
+    @Command(name = "import-postman", description = "Importa collection do Postman")
     public String importPostman(
-            @ShellOption(help = "Arquivo Postman Collection JSON") String file,
-            @ShellOption(value = "--collection", defaultValue = ShellOption.NULL, help = "Nome da collection destino") String collection) {
+            @Option(description = "Arquivo Postman Collection JSON", required = true) String file,
+            @Option(longName = "collection", defaultValue = "", description = "Nome da collection destino") String collection) {
         try {
             String content = readFile(file);
             var result = apiImportService.importPostman(content, collection);

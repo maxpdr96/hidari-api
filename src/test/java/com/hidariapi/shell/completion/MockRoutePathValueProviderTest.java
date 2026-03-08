@@ -4,7 +4,7 @@ import com.hidariapi.model.HttpMethod;
 import com.hidariapi.model.MockRoute;
 import com.hidariapi.service.MockServerService;
 import org.junit.jupiter.api.Test;
-import org.springframework.shell.CompletionContext;
+import org.springframework.shell.core.command.completion.CompletionContext;
 
 import java.util.List;
 
@@ -26,7 +26,7 @@ class MockRoutePathValueProviderTest {
         when(ctx.currentWordUpToCursor()).thenReturn("/u");
 
         var provider = new MockRoutePathValueProvider(mockService);
-        var items = provider.complete(ctx);
+        var items = provider.apply(ctx);
 
         assertEquals(1, items.size());
         assertEquals("/users", items.getFirst().value());

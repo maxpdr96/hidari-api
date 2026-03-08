@@ -3,7 +3,7 @@ package com.hidariapi.shell.completion;
 import com.hidariapi.model.Collection;
 import com.hidariapi.service.ApiService;
 import org.junit.jupiter.api.Test;
-import org.springframework.shell.CompletionContext;
+import org.springframework.shell.core.command.completion.CompletionContext;
 
 import java.util.List;
 
@@ -21,7 +21,7 @@ class CollectionNameValueProviderTest {
         when(ctx.currentWordUpToCursor()).thenReturn("b");
 
         var provider = new CollectionNameValueProvider(api);
-        var items = provider.complete(ctx);
+        var items = provider.apply(ctx);
 
         assertEquals(1, items.size());
         assertEquals("billing", items.getFirst().value());

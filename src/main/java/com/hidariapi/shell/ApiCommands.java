@@ -3,8 +3,6 @@ package com.hidariapi.shell;
 import com.hidariapi.model.*;
 import com.hidariapi.model.Collection;
 import com.hidariapi.model.Language;
-import com.hidariapi.shell.completion.CollectionNameValueProvider;
-import com.hidariapi.shell.completion.EnvironmentNameValueProvider;
 import com.hidariapi.service.ApiService;
 import com.hidariapi.service.BatchRequestExecutor;
 import com.hidariapi.service.BenchmarkService;
@@ -12,9 +10,9 @@ import com.hidariapi.service.ConfigService;
 import com.hidariapi.service.LanguageService;
 import com.hidariapi.util.CurlParser;
 import com.hidariapi.util.JsonFormatter;
-import org.springframework.shell.standard.ShellComponent;
-import org.springframework.shell.standard.ShellMethod;
-import org.springframework.shell.standard.ShellOption;
+import org.springframework.stereotype.Component;
+import org.springframework.shell.core.command.annotation.Command;
+import org.springframework.shell.core.command.annotation.Option;
 
 import java.io.IOException;
 import java.util.*;
@@ -22,7 +20,7 @@ import java.util.*;
 /**
  * Interactive commands for HidariApi — API tester in the terminal.
  */
-@ShellComponent
+@Component
 public class ApiCommands extends LocalizedSupport {
 
     private final ApiService service;
@@ -57,47 +55,47 @@ public class ApiCommands extends LocalizedSupport {
 
     // ========== LANGUAGE ===================================================
 
-    @ShellMethod(key = "language", value = "Switch display language (pt/en)")
-    public String language(@ShellOption(help = "Language: pt or en") String lang) {
+    @Command(name = "language", description = "Switch display language (pt/en)")
+    public String language(@Option(description = "Language: pt or en", required = true) String lang) {
         var language = Language.fromString(lang);
         this.lang.setCurrent(language);
         return styled(GREEN, t("Idioma alterado para: " + language, "Language changed to: " + language));
     }
 
-    @ShellMethod(key = "help-custom", value = "Show translated custom help")
+    @Command(name = "help-custom", description = "Show translated custom help")
     public String helpCustom() {
         return helpRenderer.render();
     }
 
     // ========== HTTP REQUESTS ==============================================
 
-    @ShellMethod(key = "get", value = "Envia requisicao GET")
+    @Command(name = "get", description = "Envia requisicao GET")
     public String get(
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
-                    help = "Query params (formato key=value, multiplos separados por &)") String params,
-            @ShellOption(value = "--call", defaultValue = "0",
-                    help = "Numero de chamadas sequenciais") int callCount,
-            @ShellOption(value = "--parallel", defaultValue = "0",
-                    help = "Numero de chamadas em paralelo") int parallelism,
-            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
-                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "param", defaultValue = "",
+                    description = "Query params (formato key=value, multiplos separados por &)") String params,
+            @Option(longName = "call", defaultValue = "0",
+                    description = "Numero de chamadas sequenciais") int callCount,
+            @Option(longName = "parallel", defaultValue = "0",
+                    description = "Numero de chamadas em paralelo") int parallelism,
+            @Option(longName = "output", defaultValue = "",
+                    description = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         return executeRequest(ApiRequest.of(null, HttpMethod.GET, appendParams(resolveUrl(url), params)), callCount, parallelism, outputFile);
     }
 
-    @ShellMethod(key = "post", value = "Envia requisicao POST com body JSON")
+    @Command(name = "post", description = "Envia requisicao POST com body JSON")
     public String post(
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
-                    help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
-            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
-                    help = "Query params (formato key=value, multiplos separados por &)") String params,
-            @ShellOption(value = "--call", defaultValue = "0",
-                    help = "Numero de chamadas sequenciais") int callCount,
-            @ShellOption(value = "--parallel", defaultValue = "0",
-                    help = "Numero de chamadas em paralelo") int parallelism,
-            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
-                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "body", defaultValue = "",
+                    description = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
+            @Option(longName = "param", defaultValue = "",
+                    description = "Query params (formato key=value, multiplos separados por &)") String params,
+            @Option(longName = "call", defaultValue = "0",
+                    description = "Numero de chamadas sequenciais") int callCount,
+            @Option(longName = "parallel", defaultValue = "0",
+                    description = "Numero de chamadas em paralelo") int parallelism,
+            @Option(longName = "output", defaultValue = "",
+                    description = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.POST, appendParams(resolveUrl(url), params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
@@ -105,19 +103,19 @@ public class ApiCommands extends LocalizedSupport {
         return executeRequest(req, callCount, parallelism, outputFile);
     }
 
-    @ShellMethod(key = "put", value = "Envia requisicao PUT com body JSON")
+    @Command(name = "put", description = "Envia requisicao PUT com body JSON")
     public String put(
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
-                    help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
-            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
-                    help = "Query params (formato key=value, multiplos separados por &)") String params,
-            @ShellOption(value = "--call", defaultValue = "0",
-                    help = "Numero de chamadas sequenciais") int callCount,
-            @ShellOption(value = "--parallel", defaultValue = "0",
-                    help = "Numero de chamadas em paralelo") int parallelism,
-            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
-                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "body", defaultValue = "",
+                    description = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
+            @Option(longName = "param", defaultValue = "",
+                    description = "Query params (formato key=value, multiplos separados por &)") String params,
+            @Option(longName = "call", defaultValue = "0",
+                    description = "Numero de chamadas sequenciais") int callCount,
+            @Option(longName = "parallel", defaultValue = "0",
+                    description = "Numero de chamadas em paralelo") int parallelism,
+            @Option(longName = "output", defaultValue = "",
+                    description = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.PUT, appendParams(resolveUrl(url), params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
@@ -125,19 +123,19 @@ public class ApiCommands extends LocalizedSupport {
         return executeRequest(req, callCount, parallelism, outputFile);
     }
 
-    @ShellMethod(key = "patch", value = "Envia requisicao PATCH com body JSON")
+    @Command(name = "patch", description = "Envia requisicao PATCH com body JSON")
     public String patch(
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
-                    help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
-            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
-                    help = "Query params (formato key=value, multiplos separados por &)") String params,
-            @ShellOption(value = "--call", defaultValue = "0",
-                    help = "Numero de chamadas sequenciais") int callCount,
-            @ShellOption(value = "--parallel", defaultValue = "0",
-                    help = "Numero de chamadas em paralelo") int parallelism,
-            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
-                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "body", defaultValue = "",
+                    description = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
+            @Option(longName = "param", defaultValue = "",
+                    description = "Query params (formato key=value, multiplos separados por &)") String params,
+            @Option(longName = "call", defaultValue = "0",
+                    description = "Numero de chamadas sequenciais") int callCount,
+            @Option(longName = "parallel", defaultValue = "0",
+                    description = "Numero de chamadas em paralelo") int parallelism,
+            @Option(longName = "output", defaultValue = "",
+                    description = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.PATCH, appendParams(resolveUrl(url), params))
                 .withHeader("Content-Type", "application/json");
         req = resolveAndSetBody(req, body);
@@ -145,60 +143,60 @@ public class ApiCommands extends LocalizedSupport {
         return executeRequest(req, callCount, parallelism, outputFile);
     }
 
-    @ShellMethod(key = "delete", value = "Envia requisicao DELETE")
+    @Command(name = "delete", description = "Envia requisicao DELETE")
     public String delete(
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
-                    help = "Query params (formato key=value, multiplos separados por &)") String params,
-            @ShellOption(value = "--call", defaultValue = "0",
-                    help = "Numero de chamadas sequenciais") int callCount,
-            @ShellOption(value = "--parallel", defaultValue = "0",
-                    help = "Numero de chamadas em paralelo") int parallelism,
-            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
-                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "param", defaultValue = "",
+                    description = "Query params (formato key=value, multiplos separados por &)") String params,
+            @Option(longName = "call", defaultValue = "0",
+                    description = "Numero de chamadas sequenciais") int callCount,
+            @Option(longName = "parallel", defaultValue = "0",
+                    description = "Numero de chamadas em paralelo") int parallelism,
+            @Option(longName = "output", defaultValue = "",
+                    description = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         return executeRequest(ApiRequest.of(null, HttpMethod.DELETE, appendParams(resolveUrl(url), params)), callCount, parallelism, outputFile);
     }
 
-    @ShellMethod(key = "head", value = "Envia requisicao HEAD (retorna apenas headers)")
+    @Command(name = "head", description = "Envia requisicao HEAD (retorna apenas headers)")
     public String head(
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--call", defaultValue = "0",
-                    help = "Numero de chamadas sequenciais") int callCount,
-            @ShellOption(value = "--parallel", defaultValue = "0",
-                    help = "Numero de chamadas em paralelo") int parallelism,
-            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
-                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "call", defaultValue = "0",
+                    description = "Numero de chamadas sequenciais") int callCount,
+            @Option(longName = "parallel", defaultValue = "0",
+                    description = "Numero de chamadas em paralelo") int parallelism,
+            @Option(longName = "output", defaultValue = "",
+                    description = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         return executeRequest(ApiRequest.of(null, HttpMethod.HEAD, resolveUrl(url)), callCount, parallelism, outputFile);
     }
 
-    @ShellMethod(key = "options", value = "Envia requisicao OPTIONS")
+    @Command(name = "options", description = "Envia requisicao OPTIONS")
     public String options(
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--call", defaultValue = "0",
-                    help = "Numero de chamadas sequenciais") int callCount,
-            @ShellOption(value = "--parallel", defaultValue = "0",
-                    help = "Numero de chamadas em paralelo") int parallelism,
-            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
-                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "call", defaultValue = "0",
+                    description = "Numero de chamadas sequenciais") int callCount,
+            @Option(longName = "parallel", defaultValue = "0",
+                    description = "Numero de chamadas em paralelo") int parallelism,
+            @Option(longName = "output", defaultValue = "",
+                    description = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         return executeRequest(ApiRequest.of(null, HttpMethod.OPTIONS, resolveUrl(url)), callCount, parallelism, outputFile);
     }
 
-    @ShellMethod(key = "send", value = "Envia request customizado (metodo, url, headers, body)")
+    @Command(name = "send", description = "Envia request customizado (metodo, url, headers, body)")
     public String send(
-            @ShellOption(help = "Metodo HTTP (GET, POST, PUT, etc.)") String method,
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
-                    help = "Header (formato Key:Value, multiplos separados por ;)") String headers,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
-                    help = "Body (use @arquivo.json para ler de arquivo)") String body,
-            @ShellOption(value = "--param", defaultValue = ShellOption.NULL,
-                    help = "Query params (formato key=value, multiplos separados por &)") String params,
-            @ShellOption(value = "--call", defaultValue = "0",
-                    help = "Numero de chamadas sequenciais") int callCount,
-            @ShellOption(value = "--parallel", defaultValue = "0",
-                    help = "Numero de chamadas em paralelo") int parallelism,
-            @ShellOption(value = "--output", defaultValue = ShellOption.NULL,
-                    help = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
+            @Option(description = "Metodo HTTP (GET, POST, PUT, etc.)", required = true) String method,
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "header", defaultValue = "",
+                    description = "Header (formato Key:Value, multiplos separados por ;)") String headers,
+            @Option(longName = "body", defaultValue = "",
+                    description = "Body (use @arquivo.json para ler de arquivo)") String body,
+            @Option(longName = "param", defaultValue = "",
+                    description = "Query params (formato key=value, multiplos separados por &)") String params,
+            @Option(longName = "call", defaultValue = "0",
+                    description = "Numero de chamadas sequenciais") int callCount,
+            @Option(longName = "parallel", defaultValue = "0",
+                    description = "Numero de chamadas em paralelo") int parallelism,
+            @Option(longName = "output", defaultValue = "",
+                    description = "Arquivo JSON para salvar respostas das chamadas") String outputFile) {
         var req = ApiRequest.of(null, HttpMethod.fromString(method), appendParams(resolveUrl(url), params));
         if (headers != null) {
             for (var h : headers.split(";")) {
@@ -213,17 +211,17 @@ public class ApiCommands extends LocalizedSupport {
         return executeRequest(req, callCount, parallelism, outputFile);
     }
 
-    @ShellMethod(key = "bench", value = "Benchmark endpoint with calls/concurrency/warmup and latency percentiles")
+    @Command(name = "bench", description = "Benchmark endpoint with calls/concurrency/warmup and latency percentiles")
     public String bench(
-            @ShellOption(help = "URL") String url,
-            @ShellOption(value = "--method", defaultValue = "GET", help = "Metodo HTTP") String method,
-            @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
-                    help = "Headers (formato Key:Value, multiplos separados por ;)") String headers,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
-                    help = "Body (use @arquivo.json para ler de arquivo)") String body,
-            @ShellOption(value = "--calls", defaultValue = "100", help = "Numero de chamadas medidas") int calls,
-            @ShellOption(value = "--concurrency", defaultValue = "10", help = "Concorrencia") int concurrency,
-            @ShellOption(value = "--warmup", defaultValue = "10", help = "Chamadas de aquecimento") int warmup) {
+            @Option(description = "URL", required = true) String url,
+            @Option(longName = "method", defaultValue = "GET", description = "Metodo HTTP") String method,
+            @Option(longName = "header", defaultValue = "",
+                    description = "Headers (formato Key:Value, multiplos separados por ;)") String headers,
+            @Option(longName = "body", defaultValue = "",
+                    description = "Body (use @arquivo.json para ler de arquivo)") String body,
+            @Option(longName = "calls", defaultValue = "100", description = "Numero de chamadas medidas") int calls,
+            @Option(longName = "concurrency", defaultValue = "10", description = "Concorrencia") int concurrency,
+            @Option(longName = "warmup", defaultValue = "10", description = "Chamadas de aquecimento") int warmup) {
         if (calls <= 0 || concurrency <= 0 || warmup < 0) {
             return styled(RED, t("Parametros invalidos de benchmark.", "Invalid benchmark parameters."));
         }
@@ -281,14 +279,14 @@ public class ApiCommands extends LocalizedSupport {
 
     // ========== RESPONSE ===================================================
 
-    @ShellMethod(key = "response", value = "Mostra a ultima resposta completa")
+    @Command(name = "response", description = "Mostra a ultima resposta completa")
     public String response() {
         var res = service.getLastResponse();
         if (res == null) return styled(YELLOW, t("Nenhuma resposta ainda. Envie um request primeiro.", "No response yet. Send a request first."));
         return formatFullResponse(service.getLastRequest(), res);
     }
 
-    @ShellMethod(key = "body", value = "Mostra apenas o body da ultima resposta")
+    @Command(name = "body", description = "Mostra apenas o body da ultima resposta")
     public String body() {
         var res = service.getLastResponse();
         if (res == null) return styled(YELLOW, t("Nenhuma resposta ainda.", "No response yet."));
@@ -297,27 +295,27 @@ public class ApiCommands extends LocalizedSupport {
         return res.body();
     }
 
-    @ShellMethod(key = "response-headers", value = "Mostra headers da ultima resposta")
+    @Command(name = "response-headers", description = "Mostra headers da ultima resposta")
     public String responseHeaders() {
         var res = service.getLastResponse();
         if (res == null) return styled(YELLOW, t("Nenhuma resposta ainda.", "No response yet."));
         return formatHeaders(t("Headers da Resposta", "Response Headers"), res.headers());
     }
 
-    @ShellMethod(key = "curl", value = "Gera comando cURL do ultimo request")
+    @Command(name = "curl", description = "Gera comando cURL do ultimo request")
     public String curl() {
         var req = service.getLastRequest();
         if (req == null) return styled(YELLOW, t("Nenhum request ainda.", "No request yet."));
         return styled(CYAN, req.toCurl());
     }
 
-    @ShellMethod(key = "import-curl", value = "Importa um comando cURL e executa como request")
+    @Command(name = "import-curl", description = "Importa um comando cURL e executa como request")
     public String importCurl(
-            @ShellOption(help = "Comando cURL completo (entre aspas)") String curlCommand,
-            @ShellOption(value = "--save", defaultValue = ShellOption.NULL,
-                    help = "Salvar na colecao (formato colecao:nome)") String save,
-            @ShellOption(value = "--dry-run", defaultValue = "false",
-                    help = "Apenas parseia sem executar") boolean dryRun) {
+            @Option(description = "Comando cURL completo (entre aspas)", required = true) String curlCommand,
+            @Option(longName = "save", defaultValue = "",
+                    description = "Salvar na colecao (formato colecao:nome)") String save,
+            @Option(longName = "dry-run", defaultValue = "false",
+                    description = "Apenas parseia sem executar") boolean dryRun) {
         try {
             var req = curlParser.parse(curlCommand);
 
@@ -361,8 +359,8 @@ public class ApiCommands extends LocalizedSupport {
         }
     }
 
-    @ShellMethod(key = "save-response", value = "Salva o body da ultima resposta em um arquivo")
-    public String saveResponse(@ShellOption(help = "Caminho do arquivo") String filePath) {
+    @Command(name = "save-response", description = "Salva o body da ultima resposta em um arquivo")
+    public String saveResponse(@Option(description = "Caminho do arquivo", required = true) String filePath) {
         try {
             service.saveResponseToFile(filePath);
             var res = service.getLastResponse();
@@ -374,98 +372,98 @@ public class ApiCommands extends LocalizedSupport {
 
     // ========== DEFAULT HEADERS ============================================
 
-    @ShellMethod(key = "set-header", value = "Define header padrao para todos os requests")
+    @Command(name = "set-header", description = "Define header padrao para todos os requests")
     public String setHeader(
-            @ShellOption(help = "Nome do header") String key,
-            @ShellOption(help = "Valor do header") String value) {
+            @Option(description = "Nome do header", required = true) String key,
+            @Option(description = "Valor do header", required = true) String value) {
         service.setDefaultHeader(key, value);
         return styled(GREEN, t("Header definido: ", "Header set: ") + key + ": " + value);
     }
 
-    @ShellMethod(key = "unset-header", value = "Remove header padrao")
-    public String unsetHeader(@ShellOption(help = "Nome do header") String key) {
+    @Command(name = "unset-header", description = "Remove header padrao")
+    public String unsetHeader(@Option(description = "Nome do header", required = true) String key) {
         service.removeDefaultHeader(key);
         return styled(GREEN, t("Header removido: ", "Header removed: ") + key);
     }
 
-    @ShellMethod(key = "headers", value = "Lista headers padrao configurados")
+    @Command(name = "headers", description = "Lista headers padrao configurados")
     public String headers() {
         var hdrs = service.getDefaultHeaders();
         if (hdrs.isEmpty()) return styled(DIM, t("Nenhum header padrao configurado.", "No default headers configured."));
         return formatHeaders(t("Headers Padrao", "Default Headers"), hdrs);
     }
 
-    @ShellMethod(key = "clear-headers", value = "Remove todos os headers padrao")
+    @Command(name = "clear-headers", description = "Remove todos os headers padrao")
     public String clearHeaders() {
         service.clearDefaultHeaders();
         return styled(GREEN, t("Todos os headers padrao removidos.", "All default headers removed."));
     }
 
-    @ShellMethod(key = "bearer", value = "Define Authorization: Bearer <token>")
-    public String bearer(@ShellOption(help = "Token") String token) {
+    @Command(name = "bearer", description = "Define Authorization: Bearer <token>")
+    public String bearer(@Option(description = "Token", required = true) String token) {
         service.setDefaultHeader("Authorization", "Bearer " + token);
         return styled(GREEN, t("Bearer token configurado.", "Bearer token set."));
     }
 
     // ========== ENVIRONMENTS ===============================================
 
-    @ShellMethod(key = "env-create", value = "Cria um novo ambiente")
-    public String envCreate(@ShellOption(help = "Nome do ambiente (ex: dev, prod)") String name) {
+    @Command(name = "env-create", description = "Cria um novo ambiente")
+    public String envCreate(@Option(description = "Nome do ambiente (ex: dev, prod)", required = true) String name) {
         service.saveEnvironment(Environment.empty(name));
         return styled(GREEN, t("Ambiente criado: ", "Environment created: ") + name);
     }
 
-    @ShellMethod(key = "env-set", value = "Define variavel no ambiente")
+    @Command(name = "env-set", description = "Define variavel no ambiente")
     public String envSet(
-            @ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String envName,
-            @ShellOption(help = "Nome da variavel") String key,
-            @ShellOption(help = "Valor") String value) {
+            @Option(description = "Nome do ambiente") String envName,
+            @Option(description = "Nome da variavel", required = true) String key,
+            @Option(description = "Valor", required = true) String value) {
         var env = service.getEnvironment(envName);
         if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + envName);
         service.saveEnvironment(env.get().withVariable(key, value));
         return styled(GREEN, t("Variavel definida: ", "Variable set: ") + key + " = " + value + " [" + envName + "]");
     }
 
-    @ShellMethod(key = "env-unset", value = "Remove variavel de um ambiente")
+    @Command(name = "env-unset", description = "Remove variavel de um ambiente")
     public String envUnset(
-            @ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String envName,
-            @ShellOption(help = "Nome da variavel") String key) {
+            @Option(description = "Nome do ambiente") String envName,
+            @Option(description = "Nome da variavel", required = true) String key) {
         var env = service.getEnvironment(envName);
         if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + envName);
         service.saveEnvironment(env.get().withoutVariable(key));
         return styled(GREEN, t("Variavel removida: ", "Variable removed: ") + key + " [" + envName + "]");
     }
 
-    @ShellMethod(key = "env-use", value = "Ativa um ambiente (variaveis {{key}} serao substituidas)")
-    public String envUse(@ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String name) {
+    @Command(name = "env-use", description = "Ativa um ambiente (variaveis {{key}} serao substituidas)")
+    public String envUse(@Option(description = "Nome do ambiente") String name) {
         var env = service.getEnvironment(name);
         if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + name);
         service.setActiveEnvironment(name);
         return styled(GREEN, t("Ambiente ativo: ", "Active environment: ") + name);
     }
 
-    @ShellMethod(key = "env-clear", value = "Desativa o ambiente atual")
+    @Command(name = "env-clear", description = "Desativa o ambiente atual")
     public String envClear() {
         service.clearActiveEnvironment();
         return styled(GREEN, t("Ambiente desativado.", "Environment deactivated."));
     }
 
-    @ShellMethod(key = "envs", value = "Lista ambientes disponiveis")
+    @Command(name = "envs", description = "Lista ambientes disponiveis")
     public String envs() {
         var envs = service.listEnvironments();
         if (envs.isEmpty()) return styled(DIM, t("Nenhum ambiente criado. Use 'env-create <nome>' para criar.", "No environments created. Use 'env-create <name>' to create one."));
         return formatEnvironments(envs);
     }
 
-    @ShellMethod(key = "env-show", value = "Mostra variaveis de um ambiente")
-    public String envShow(@ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String name) {
+    @Command(name = "env-show", description = "Mostra variaveis de um ambiente")
+    public String envShow(@Option(description = "Nome do ambiente") String name) {
         var env = service.getEnvironment(name);
         if (env.isEmpty()) return styled(RED, t("Ambiente nao encontrado: ", "Environment not found: ") + name);
         return formatEnvironmentDetail(env.get());
     }
 
-    @ShellMethod(key = "env-rm", value = "Remove um ambiente")
-    public String envRm(@ShellOption(help = "Nome do ambiente", valueProvider = EnvironmentNameValueProvider.class) String name) {
+    @Command(name = "env-rm", description = "Remove um ambiente")
+    public String envRm(@Option(description = "Nome do ambiente") String name) {
         if (service.removeEnvironment(name)) {
             return styled(GREEN, t("Ambiente removido: ", "Environment removed: ") + name);
         }
@@ -474,16 +472,16 @@ public class ApiCommands extends LocalizedSupport {
 
     // ========== COLLECTIONS ================================================
 
-    @ShellMethod(key = "col-create", value = "Cria uma nova colecao")
-    public String colCreate(@ShellOption(help = "Nome da colecao") String name) {
+    @Command(name = "col-create", description = "Cria uma nova colecao")
+    public String colCreate(@Option(description = "Nome da colecao", required = true) String name) {
         service.saveCollection(Collection.empty(name));
         return styled(GREEN, t("Colecao criada: ", "Collection created: ") + name);
     }
 
-    @ShellMethod(key = "col-add", value = "Salva o ultimo request em uma colecao")
+    @Command(name = "col-add", description = "Salva o ultimo request em uma colecao")
     public String colAdd(
-            @ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String colName,
-            @ShellOption(help = "Nome para o request") String reqName) {
+            @Option(description = "Nome da colecao") String colName,
+            @Option(description = "Nome para o request", required = true) String reqName) {
         var req = service.getLastRequest();
         if (req == null) return styled(RED, t("Nenhum request para salvar. Envie um request primeiro.", "No request to save. Send a request first."));
         var col = service.getCollection(colName);
@@ -493,10 +491,10 @@ public class ApiCommands extends LocalizedSupport {
                                 "Request '" + reqName + "' saved in collection '" + colName + "'"));
     }
 
-    @ShellMethod(key = "col-run", value = "Executa um request de uma colecao")
+    @Command(name = "col-run", description = "Executa um request de uma colecao")
     public String colRun(
-            @ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String colName,
-            @ShellOption(help = "Indice do request (1-based)") int index) {
+            @Option(description = "Nome da colecao") String colName,
+            @Option(description = "Indice do request (1-based)", required = true) int index) {
         var col = service.getCollection(colName);
         if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
         var requests = col.get().requests();
@@ -507,17 +505,17 @@ public class ApiCommands extends LocalizedSupport {
         return executeRequest(requests.get(index - 1));
     }
 
-    @ShellMethod(key = "col-show", value = "Mostra requests de uma colecao")
-    public String colShow(@ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String name) {
+    @Command(name = "col-show", description = "Mostra requests de uma colecao")
+    public String colShow(@Option(description = "Nome da colecao") String name) {
         var col = service.getCollection(name);
         if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + name);
         return formatCollectionDetail(col.get());
     }
 
-    @ShellMethod(key = "col-rm-req", value = "Remove um request de uma colecao")
+    @Command(name = "col-rm-req", description = "Remove um request de uma colecao")
     public String colRmReq(
-            @ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String colName,
-            @ShellOption(help = "Indice do request (1-based)") int index) {
+            @Option(description = "Nome da colecao") String colName,
+            @Option(description = "Indice do request (1-based)", required = true) int index) {
         var col = service.getCollection(colName);
         if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
         if (index < 1 || index > col.get().requests().size()) {
@@ -528,15 +526,15 @@ public class ApiCommands extends LocalizedSupport {
                                 "Request removed from collection '" + colName + "'"));
     }
 
-    @ShellMethod(key = "cols", value = "Lista colecoes")
+    @Command(name = "cols", description = "Lista colecoes")
     public String cols() {
         var cols = service.listCollections();
         if (cols.isEmpty()) return styled(DIM, t("Nenhuma colecao. Use 'col-create <nome>' para criar.", "No collections. Use 'col-create <name>' to create one."));
         return formatCollections(cols);
     }
 
-    @ShellMethod(key = "col-run-all", value = "Executa todos os requests de uma colecao (smoke test)")
-    public String colRunAll(@ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String colName) {
+    @Command(name = "col-run-all", description = "Executa todos os requests de uma colecao (smoke test)")
+    public String colRunAll(@Option(description = "Nome da colecao") String colName) {
         var col = service.getCollection(colName);
         if (col.isEmpty()) return styled(RED, t("Colecao nao encontrada: ", "Collection not found: ") + colName);
         if (col.get().requests().isEmpty()) return styled(YELLOW, t("Colecao vazia.", "Empty collection."));
@@ -551,8 +549,8 @@ public class ApiCommands extends LocalizedSupport {
         return formatRunAllResults(colName, results);
     }
 
-    @ShellMethod(key = "col-rm", value = "Remove uma colecao")
-    public String colRm(@ShellOption(help = "Nome da colecao", valueProvider = CollectionNameValueProvider.class) String name) {
+    @Command(name = "col-rm", description = "Remove uma colecao")
+    public String colRm(@Option(description = "Nome da colecao") String name) {
         if (service.removeCollection(name)) {
             return styled(GREEN, t("Colecao removida: ", "Collection removed: ") + name);
         }
@@ -561,22 +559,22 @@ public class ApiCommands extends LocalizedSupport {
 
     // ========== HISTORY ====================================================
 
-    @ShellMethod(key = "history", value = "Mostra historico de requests")
+    @Command(name = "history", description = "Mostra historico de requests")
     public String history(
-            @ShellOption(value = "--limit", defaultValue = "20", help = "Limite de entradas") int limit) {
+            @Option(longName = "limit", defaultValue = "20", description = "Limite de entradas") int limit) {
         var entries = service.getHistory(limit);
         if (entries.isEmpty()) return styled(DIM, t("Historico vazio.", "History is empty."));
         return formatHistory(entries);
     }
 
-    @ShellMethod(key = "replay", value = "Re-executa um request do historico")
-    public String replay(@ShellOption(help = "Indice do historico (1-based)") int index) {
+    @Command(name = "replay", description = "Re-executa um request do historico")
+    public String replay(@Option(description = "Indice do historico (1-based)", required = true) int index) {
         var entry = service.getHistoryEntry(index);
         if (entry == null) return styled(RED, t("Indice invalido.", "Invalid index."));
         return executeRequest(entry.request());
     }
 
-    @ShellMethod(key = "clear-history", value = "Limpa o historico de requests")
+    @Command(name = "clear-history", description = "Limpa o historico de requests")
     public String clearHistory() {
         service.clearHistory();
         return styled(GREEN, t("Historico limpo.", "History cleared."));

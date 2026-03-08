@@ -1,15 +1,15 @@
 package com.hidariapi.shell.completion;
 
 import com.hidariapi.service.ApiService;
-import org.springframework.shell.CompletionContext;
-import org.springframework.shell.CompletionProposal;
-import org.springframework.shell.standard.ValueProvider;
+import org.springframework.shell.core.command.completion.CompletionContext;
+import org.springframework.shell.core.command.completion.CompletionProposal;
+import org.springframework.shell.core.command.completion.CompletionProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
-public class EnvironmentNameValueProvider implements ValueProvider {
+public class EnvironmentNameValueProvider implements CompletionProvider {
 
     private final ApiService apiService;
 
@@ -18,7 +18,7 @@ public class EnvironmentNameValueProvider implements ValueProvider {
     }
 
     @Override
-    public List<CompletionProposal> complete(CompletionContext completionContext) {
+    public List<CompletionProposal> apply(CompletionContext completionContext) {
         var prefix = completionContext.currentWordUpToCursor();
         return apiService.listEnvironments().stream()
                 .map(env -> env.name())

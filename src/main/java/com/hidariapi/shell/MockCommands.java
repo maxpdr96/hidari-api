@@ -2,15 +2,13 @@ package com.hidariapi.shell;
 
 import com.hidariapi.model.HttpMethod;
 import com.hidariapi.model.MockRoute;
-import com.hidariapi.shell.completion.MockRouteIndexValueProvider;
-import com.hidariapi.shell.completion.MockRoutePathValueProvider;
 import com.hidariapi.service.ApiService;
 import com.hidariapi.service.LanguageService;
 import com.hidariapi.service.MockServerService;
 import com.hidariapi.util.JsonFormatter;
-import org.springframework.shell.standard.ShellComponent;
-import org.springframework.shell.standard.ShellMethod;
-import org.springframework.shell.standard.ShellOption;
+import org.springframework.stereotype.Component;
+import org.springframework.shell.core.command.annotation.Command;
+import org.springframework.shell.core.command.annotation.Option;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -22,7 +20,7 @@ import java.util.LinkedHashMap;
 /**
  * Mock Server commands — creates fake APIs directly in the terminal.
  */
-@ShellComponent
+@Component
 public class MockCommands extends LocalizedSupport {
 
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm:ss")
@@ -41,9 +39,9 @@ public class MockCommands extends LocalizedSupport {
 
     // ========== SERVER CONTROL =============================================
 
-    @ShellMethod(key = "mock-start", value = "Inicia o mock server")
+    @Command(name = "mock-start", description = "Inicia o mock server")
     public String mockStart(
-            @ShellOption(value = "--port", defaultValue = "8089", help = "Porta do servidor") int port) {
+            @Option(longName = "port", defaultValue = "8089", description = "Porta do servidor") int port) {
         try {
             mockService.start(port);
             var sb = new StringBuilder();
@@ -59,7 +57,7 @@ public class MockCommands extends LocalizedSupport {
         }
     }
 
-    @ShellMethod(key = "mock-stop", value = "Para o mock server")
+    @Command(name = "mock-stop", description = "Para o mock server")
     public String mockStop() {
         if (!mockService.isRunning()) {
             return styled(YELLOW, t("Mock server nao esta rodando.", "Mock server is not running."));
@@ -68,7 +66,7 @@ public class MockCommands extends LocalizedSupport {
         return styled(GREEN, t("Mock server parado.", "Mock server stopped."));
     }
 
-    @ShellMethod(key = "mock-status", value = "Mostra status do mock server")
+    @Command(name = "mock-status", description = "Mostra status do mock server")
     public String mockStatus() {
         if (!mockService.isRunning()) {
             return styled(DIM, t("Mock server nao esta rodando. Use 'mock-start' para iniciar.", "Mock server is not running. Use 'mock-start' to start."));
@@ -83,19 +81,19 @@ public class MockCommands extends LocalizedSupport {
 
     // ========== ROUTE MANAGEMENT ===========================================
 
-    @ShellMethod(key = "mock-add", value = "Adiciona uma rota ao mock server")
+    @Command(name = "mock-add", description = "Adiciona uma rota ao mock server")
     public String mockAdd(
-            @ShellOption(help = "Metodo HTTP (GET, POST, PUT, DELETE, etc.)") String method,
-            @ShellOption(help = "Path da rota (ex: /api/users, /api/users/{id})", valueProvider = MockRoutePathValueProvider.class) String path,
-            @ShellOption(value = "--status", defaultValue = "200", help = "Status code da resposta") int status,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
-                    help = "Body da resposta (use @arquivo.json para ler de arquivo)") String body,
-            @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
-                    help = "Headers (formato Key:Value, multiplos separados por ;)") String headers,
-            @ShellOption(value = "--delay", defaultValue = "0", help = "Delay em ms antes de responder") long delay,
-            @ShellOption(value = "--timeout-config", defaultValue = "0", help = "Limite de timeout em segundos (retorna 408 se exceder)") long timeoutSeconds,
-            @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Sequencia stateful de status (ex: 500,500,200)") String scenario,
-            @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Descricao da rota") String desc) {
+            @Option(description = "Metodo HTTP (GET, POST, PUT, DELETE, etc.)", required = true) String method,
+            @Option(description = "Path da rota (ex: /api/users, /api/users/{id})") String path,
+            @Option(longName = "status", defaultValue = "200", description = "Status code da resposta") int status,
+            @Option(longName = "body", defaultValue = "",
+                    description = "Body da resposta (use @arquivo.json para ler de arquivo)") String body,
+            @Option(longName = "header", defaultValue = "",
+                    description = "Headers (formato Key:Value, multiplos separados por ;)") String headers,
+            @Option(longName = "delay", defaultValue = "0", description = "Delay em ms antes de responder") long delay,
+            @Option(longName = "timeout-config", defaultValue = "0", description = "Limite de timeout em segundos (retorna 408 se exceder)") long timeoutSeconds,
+            @Option(longName = "scenario", defaultValue = "", description = "Sequencia stateful de status (ex: 500,500,200)") String scenario,
+            @Option(longName = "desc", defaultValue = "", description = "Descricao da rota") String desc) {
 
         var resolvedBody = resolveBody(body);
         var route = new MockRoute(
@@ -115,15 +113,15 @@ public class MockCommands extends LocalizedSupport {
         return sb.toString();
     }
 
-    @ShellMethod(key = "mock-add-json", value = "Adiciona rota que retorna JSON (atalho)")
+    @Command(name = "mock-add-json", description = "Adiciona rota que retorna JSON (atalho)")
     public String mockAddJson(
-            @ShellOption(help = "Metodo HTTP") String method,
-            @ShellOption(help = "Path da rota", valueProvider = MockRoutePathValueProvider.class) String path,
-            @ShellOption(value = "--body", help = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
-            @ShellOption(value = "--status", defaultValue = "200", help = "Status code") int status,
-            @ShellOption(value = "--timeout-config", defaultValue = "0", help = "Limite de timeout em segundos (retorna 408 se exceder)") long timeoutSeconds,
-            @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Sequencia stateful de status (ex: 500,500,200)") String scenario,
-            @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Descricao") String desc) {
+            @Option(description = "Metodo HTTP", required = true) String method,
+            @Option(description = "Path da rota") String path,
+            @Option(longName = "body", description = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
+            @Option(longName = "status", defaultValue = "200", description = "Status code") int status,
+            @Option(longName = "timeout-config", defaultValue = "0", description = "Limite de timeout em segundos (retorna 408 se exceder)") long timeoutSeconds,
+            @Option(longName = "scenario", defaultValue = "", description = "Sequencia stateful de status (ex: 500,500,200)") String scenario,
+            @Option(longName = "desc", defaultValue = "", description = "Descricao") String desc) {
 
         var resolvedBody = resolveBody(body);
         var route = MockRoute.withStatus(HttpMethod.fromString(method), path, status, resolvedBody)
@@ -144,13 +142,13 @@ public class MockCommands extends LocalizedSupport {
         return sb.toString();
     }
 
-    @ShellMethod(key = "mock-add-crud", value = "Cria rotas CRUD completas para um recurso")
+    @Command(name = "mock-add-crud", description = "Cria rotas CRUD completas para um recurso")
     public String mockAddCrud(
-            @ShellOption(help = "Path base do recurso (ex: /api/users)", valueProvider = MockRoutePathValueProvider.class) String basePath,
-            @ShellOption(value = "--list-body", defaultValue = "[]",
-                    help = "Body do GET (lista)") String listBody,
-            @ShellOption(value = "--item-body", defaultValue = "{}",
-                    help = "Body do GET por ID") String itemBody) {
+            @Option(description = "Path base do recurso (ex: /api/users)") String basePath,
+            @Option(longName = "list-body", defaultValue = "[]",
+                    description = "Body do GET (lista)") String listBody,
+            @Option(longName = "item-body", defaultValue = "{}",
+                    description = "Body do GET por ID") String itemBody) {
 
         var resolvedList = resolveBody(listBody);
         var resolvedItem = resolveBody(itemBody);
@@ -180,10 +178,10 @@ public class MockCommands extends LocalizedSupport {
         return sb.toString();
     }
 
-    @ShellMethod(key = "mock-from-response", value = "Cria rota mock a partir da ultima resposta recebida")
+    @Command(name = "mock-from-response", description = "Cria rota mock a partir da ultima resposta recebida")
     public String mockFromResponse(
-            @ShellOption(help = "Path da rota no mock (ex: /api/users)", valueProvider = MockRoutePathValueProvider.class) String path,
-            @ShellOption(value = "--method", defaultValue = "GET", help = "Metodo HTTP") String method) {
+            @Option(description = "Path da rota no mock (ex: /api/users)") String path,
+            @Option(longName = "method", defaultValue = "GET", description = "Metodo HTTP") String method) {
 
         var lastResponse = apiService.getLastResponse();
         if (lastResponse == null) {
@@ -214,7 +212,7 @@ public class MockCommands extends LocalizedSupport {
         return sb.toString();
     }
 
-    @ShellMethod(key = "mock-list", value = "Lista todas as rotas do mock server")
+    @Command(name = "mock-list", description = "Lista todas as rotas do mock server")
     public String mockList() {
         var routes = mockService.listRoutes();
         if (routes.isEmpty()) {
@@ -223,27 +221,27 @@ public class MockCommands extends LocalizedSupport {
         return formatRoutes(routes);
     }
 
-    @ShellMethod(key = "mock-show", value = "Mostra detalhes de uma rota")
-    public String mockShow(@ShellOption(help = "Indice da rota (1-based)", valueProvider = MockRouteIndexValueProvider.class) int index) {
+    @Command(name = "mock-show", description = "Mostra detalhes de uma rota")
+    public String mockShow(@Option(description = "Indice da rota (1-based)") int index) {
         var route = mockService.getRoute(index);
         if (route.isEmpty()) return styled(RED, t("Indice invalido.", "Invalid index."));
         return formatRouteDetail(index, route.get());
     }
 
-    @ShellMethod(key = "mock-edit", value = "Edita uma rota existente (status, body, header, delay)")
+    @Command(name = "mock-edit", description = "Edita uma rota existente (status, body, header, delay)")
     public String mockEdit(
-            @ShellOption(help = "Indice da rota (1-based)", valueProvider = MockRouteIndexValueProvider.class) int index,
-            @ShellOption(value = "--status", defaultValue = "-1", help = "Novo status code") int status,
-            @ShellOption(value = "--body", defaultValue = ShellOption.NULL,
-                    help = "Novo body (use @arquivo.json para ler de arquivo)") String body,
-            @ShellOption(value = "--header", defaultValue = ShellOption.NULL,
-                    help = "Adicionar headers (formato Key:Value, multiplos separados por ;)") String headers,
-            @ShellOption(value = "--delay", defaultValue = "-1", help = "Novo delay em ms") long delay,
-            @ShellOption(value = "--timeout-config", defaultValue = "-1", help = "Novo limite de timeout em segundos") long timeoutSeconds,
-            @ShellOption(value = "--scenario", defaultValue = ShellOption.NULL, help = "Nova sequencia stateful de status (ex: 500,500,200)") String scenario,
-            @ShellOption(value = "--desc", defaultValue = ShellOption.NULL, help = "Nova descricao") String desc,
-            @ShellOption(value = "--method", defaultValue = ShellOption.NULL, help = "Novo metodo HTTP") String method,
-            @ShellOption(value = "--path", defaultValue = ShellOption.NULL, help = "Novo path") String path) {
+            @Option(description = "Indice da rota (1-based)") int index,
+            @Option(longName = "status", defaultValue = "-1", description = "Novo status code") int status,
+            @Option(longName = "body", defaultValue = "",
+                    description = "Novo body (use @arquivo.json para ler de arquivo)") String body,
+            @Option(longName = "header", defaultValue = "",
+                    description = "Adicionar headers (formato Key:Value, multiplos separados por ;)") String headers,
+            @Option(longName = "delay", defaultValue = "-1", description = "Novo delay em ms") long delay,
+            @Option(longName = "timeout-config", defaultValue = "-1", description = "Novo limite de timeout em segundos") long timeoutSeconds,
+            @Option(longName = "scenario", defaultValue = "", description = "Nova sequencia stateful de status (ex: 500,500,200)") String scenario,
+            @Option(longName = "desc", defaultValue = "", description = "Nova descricao") String desc,
+            @Option(longName = "method", defaultValue = "", description = "Novo metodo HTTP") String method,
+            @Option(longName = "path", defaultValue = "", description = "Novo path") String path) {
 
         var existing = mockService.getRoute(index);
         if (existing.isEmpty()) return styled(RED, t("Indice invalido.", "Invalid index."));
@@ -324,15 +322,15 @@ public class MockCommands extends LocalizedSupport {
         return sb.toString();
     }
 
-    @ShellMethod(key = "mock-rm", value = "Remove uma rota do mock server")
-    public String mockRm(@ShellOption(help = "Indice da rota (1-based)", valueProvider = MockRouteIndexValueProvider.class) int index) {
+    @Command(name = "mock-rm", description = "Remove uma rota do mock server")
+    public String mockRm(@Option(description = "Indice da rota (1-based)") int index) {
         if (mockService.removeRoute(index)) {
             return styled(GREEN, t("Rota removida.", "Route removed."));
         }
         return styled(RED, t("Indice invalido.", "Invalid index."));
     }
 
-    @ShellMethod(key = "mock-clear", value = "Remove todas as rotas do mock server")
+    @Command(name = "mock-clear", description = "Remove todas as rotas do mock server")
     public String mockClear() {
         mockService.clearRoutes();
         return styled(GREEN, t("Todas as rotas removidas.", "All routes removed."));
@@ -340,9 +338,9 @@ public class MockCommands extends LocalizedSupport {
 
     // ========== LOGS =======================================================
 
-    @ShellMethod(key = "mock-logs", value = "Mostra requests recebidos pelo mock server")
+    @Command(name = "mock-logs", description = "Mostra requests recebidos pelo mock server")
     public String mockLogs(
-            @ShellOption(value = "--limit", defaultValue = "20", help = "Numero de logs") int limit) {
+            @Option(longName = "limit", defaultValue = "20", description = "Numero de logs") int limit) {
         if (!mockService.isRunning()) {
             return styled(YELLOW, t("Mock server nao esta rodando.", "Mock server is not running."));
         }
@@ -353,7 +351,7 @@ public class MockCommands extends LocalizedSupport {
         return formatLogs(logs);
     }
 
-    @ShellMethod(key = "mock-clear-logs", value = "Limpa os logs do mock server")
+    @Command(name = "mock-clear-logs", description = "Limpa os logs do mock server")
     public String mockClearLogs() {
         mockService.clearLogs();
         return styled(GREEN, t("Logs limpos.", "Logs cleared."));

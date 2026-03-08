@@ -1,30 +1,24 @@
 package com.hidariapi.shell;
 
 import com.hidariapi.service.LanguageService;
-import org.springframework.shell.command.CommandRegistration;
-import org.springframework.shell.result.CommandNotFoundMessageProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.Comparator;
 import java.util.List;
-import java.util.Map;
 
 @Component
-public class CommandSuggestionProvider extends LocalizedSupport implements CommandNotFoundMessageProvider {
+public class CommandSuggestionProvider extends LocalizedSupport {
 
     public CommandSuggestionProvider(LanguageService lang) {
         super(lang);
     }
 
-    @Override
-    public String apply(ProviderContext ctx) {
-        String typed = ctx.text() != null ? ctx.text().trim() : "";
-        String unknown = firstToken(typed);
-
+    public String suggest(String typed, List<String> commands) {
+        String unknown = firstToken(typed == null ? "" : typed.trim());
         String base = t("Comando nao encontrado: ", "Command not found: ") + typed;
-        if (unknown == null || unknown.isBlank()) return base;
+        if (unknown == null || unknown.isBlank() || commands == null || commands.isEmpty()) return base;
 
-        String suggestion = closestCommand(unknown, ctx.registrations());
+        String suggestion = closestCommand(unknown, commands);
         if (suggestion == null) return base;
         return base + "\n" + t("Voce quis dizer: ", "Did you mean: ") + suggestion;
     }
@@ -34,12 +28,9 @@ public class CommandSuggestionProvider extends LocalizedSupport implements Comma
         return idx < 0 ? text : text.substring(0, idx);
     }
 
-    private String closestCommand(String unknown, Map<String, CommandRegistration> registrations) {
-        List<String> commands = registrations.values().stream()
-                .map(CommandRegistration::getCommand)
-                .distinct()
-                .toList();
+    private String closestCommand(String unknown, List<String> commands) {
         return commands.stream()
+                .distinct()
                 .sorted(Comparator.comparingInt(c -> score(unknown, c)))
                 .filter(c -> score(unknown, c) <= 3 || c.startsWith(unknown) || unknown.startsWith(c))
                 .findFirst()

@@ -110,7 +110,7 @@ public class BatchRequestExecutor {
 
     private CallResult executeCall(int index, ApiRequest request) {
         try {
-            var response = apiService.execute(request);
+            var response = apiService.executeAsync(request).join();
             return CallResult.success(index, Instant.now(), request, response);
         } catch (Exception e) {
             return CallResult.failure(index, Instant.now(), request, e.getMessage());

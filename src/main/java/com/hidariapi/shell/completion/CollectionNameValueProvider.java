@@ -1,15 +1,15 @@
 package com.hidariapi.shell.completion;
 
 import com.hidariapi.service.ApiService;
-import org.springframework.shell.CompletionContext;
-import org.springframework.shell.CompletionProposal;
-import org.springframework.shell.standard.ValueProvider;
+import org.springframework.shell.core.command.completion.CompletionContext;
+import org.springframework.shell.core.command.completion.CompletionProposal;
+import org.springframework.shell.core.command.completion.CompletionProvider;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 
 @Component
-public class CollectionNameValueProvider implements ValueProvider {
+public class CollectionNameValueProvider implements CompletionProvider {
 
     private final ApiService apiService;
 
@@ -18,7 +18,7 @@ public class CollectionNameValueProvider implements ValueProvider {
     }
 
     @Override
-    public List<CompletionProposal> complete(CompletionContext completionContext) {
+    public List<CompletionProposal> apply(CompletionContext completionContext) {
         var prefix = completionContext.currentWordUpToCursor();
         return apiService.listCollections().stream()
                 .map(col -> col.name())
