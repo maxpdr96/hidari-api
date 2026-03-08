@@ -81,7 +81,14 @@ public class LocalizedHelpRenderer extends LocalizedSupport {
                         item("col-show <colecao> / cols", "Mostra/lista colecoes.", "Shows/lists collections."),
                         item("col-run <colecao> <indice>", "Executa request salvo.", "Runs saved request."),
                         item("col-run-all <colecao>", "Executa todos os requests.", "Runs all requests."),
-                        item("col-rm-req <colecao> <indice> / col-rm <nome>", "Remove request/colecao.", "Removes request/collection.")
+                        item("col-rm-req <colecao> <indice> / col-rm <nome>", "Remove request/colecao.", "Removes request/collection."),
+                        item("import-openapi <arquivo> [--collection --base-url --mocks]", "Importa OpenAPI e gera collection/mocks.", "Imports OpenAPI and generates collection/mocks."),
+                        item("import-postman <arquivo> [--collection]", "Importa collection do Postman.", "Imports Postman collection.")
+                ),
+                section("Produtividade", "Productivity",
+                        item("alias-set <nome> \"<comando>\"", "Cria alias customizado.", "Creates custom alias."),
+                        item("alias-run <nome> [--args \"...\"] / a <nome>", "Executa alias.", "Runs alias."),
+                        item("aliases / alias-rm <nome>", "Lista/remove aliases.", "Lists/removes aliases.")
                 ),
                 section("Historico", "History",
                         item("history [--limit N]", "Mostra historico.", "Shows history."),
@@ -91,6 +98,8 @@ public class LocalizedHelpRenderer extends LocalizedSupport {
                 section("Templates", "Templates",
                         item("{{$timestamp}} / {{$isoTimestamp}} / {{$uuid}} / {{$cpf}} / {{$cnpj}} / {{$cep}}", "Variaveis dinamicas em URL/header/body.", "Dynamic variables in URL/header/body."),
                         item("{{$phoneBr}} / {{$fullNameBr}} / {{$addressBr}}", "Fakers brasileiros no runtime.", "Brazilian fakers at runtime."),
+                        item("{{phone_br.ddd}} / {{phone_br.number}} / {{full_name_br.first_name}} / {{full_name_br.middle_name}} / {{full_name_br.last_name}}", "Partes dos fakers BR.", "Brazilian faker field parts."),
+                        item("{{address_br.street}} / {{address_br.number}} / {{address_br.neighborhood}} / {{address_br.city}} / {{address_br.state}} / {{address_br.cep}}", "Endereco BR por campo.", "Brazilian address by field."),
                         item("{{chave}} ou {{env.chave}}", "Variavel do ambiente ativo.", "Variable from active environment."),
                         item("{{last.status}} / {{last.header.content-type}}", "Usa dados da ultima resposta.", "Uses data from last response."),
                         item("{{last.body.user.id}}", "Extrai campo JSON da ultima resposta.", "Extracts JSON field from last response.")

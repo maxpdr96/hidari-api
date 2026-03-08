@@ -42,7 +42,7 @@ class MockServerServiceTest {
         }
 
         service.addRoute(MockRoute.json(HttpMethod.GET, "/users/{id}",
-                "{\"id\":\"{{param.id}}\",\"q\":\"{{query.q}}\",\"cpf\":\"{{faker.cpf}}\",\"cnpj\":\"{{faker.cnpj}}\",\"cep\":\"{{faker.cep}}\",\"phone\":\"{{faker.phone_br}}\",\"name\":\"{{faker.full_name_br}}\",\"address\":\"{{faker.address_br}}\"}"));
+                "{\"id\":\"{{param.id}}\",\"q\":\"{{query.q}}\",\"cpf\":\"{{faker.cpf}}\",\"cnpj\":\"{{faker.cnpj}}\",\"cep\":\"{{faker.cep}}\",\"phone\":\"{{faker.phone_br}}\",\"phoneDdd\":\"{{phone_br.ddd}}\",\"phoneNumber\":\"{{phone_br.number}}\",\"name\":\"{{faker.full_name_br}}\",\"firstName\":\"{{full_name_br.first_name}}\",\"middleName\":\"{{full_name_br.middle_name}}\",\"lastName\":\"{{full_name_br.last_name}}\",\"address\":\"{{faker.address_br}}\",\"addressNumber\":\"{{address_br.number}}\",\"addressCity\":\"{{address_br.city}}\",\"addressState\":\"{{address_br.state}}\",\"addressCep\":\"{{address_br.cep}}\"}"));
         service.start(port);
 
         var client = HttpClient.newHttpClient();
@@ -56,8 +56,17 @@ class MockServerServiceTest {
         assertTrue(res.body().matches(".*\\\"cnpj\\\":\\\"\\d{14}\\\".*"));
         assertTrue(res.body().matches(".*\\\"cep\\\":\\\"\\d{8}\\\".*"));
         assertTrue(res.body().matches(".*\\\"phone\\\":\\\"\\d{2}9\\d{8}\\\".*"));
+        assertTrue(res.body().matches(".*\\\"phoneDdd\\\":\\\"\\d{2}\\\".*"));
+        assertTrue(res.body().matches(".*\\\"phoneNumber\\\":\\\"9\\d{8}\\\".*"));
         assertTrue(res.body().matches(".*\\\"name\\\":\\\"[^\\\"]+\\\".*"));
+        assertTrue(res.body().matches(".*\\\"firstName\\\":\\\"[A-Za-z]+\\\".*"));
+        assertTrue(res.body().matches(".*\\\"middleName\\\":\\\"[A-Za-z]+\\\".*"));
+        assertTrue(res.body().matches(".*\\\"lastName\\\":\\\"[A-Za-z]+\\\".*"));
         assertTrue(res.body().matches(".*\\\"address\\\":\\\"[^\\\"]*\\d{8}\\\".*"));
+        assertTrue(res.body().matches(".*\\\"addressNumber\\\":\\\"\\d+\\\".*"));
+        assertTrue(res.body().matches(".*\\\"addressCity\\\":\\\"[^\\\"]+\\\".*"));
+        assertTrue(res.body().matches(".*\\\"addressState\\\":\\\"[A-Z]{2}\\\".*"));
+        assertTrue(res.body().matches(".*\\\"addressCep\\\":\\\"\\d{8}\\\".*"));
         assertFalse(service.getRequestLogs(10).isEmpty());
     }
 }

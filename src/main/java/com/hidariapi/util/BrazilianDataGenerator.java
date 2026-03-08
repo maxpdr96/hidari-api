@@ -75,19 +75,75 @@ public final class BrazilianDataGenerator {
     }
 
     public static String randomPhoneBr() {
-        int ddd = ThreadLocalRandom.current().nextInt(11, 100);
-        int suffix = ThreadLocalRandom.current().nextInt(1_0000_0000);
-        return String.format("%02d9%08d", ddd, suffix);
+        return randomPhoneBrData().full();
     }
 
     public static String randomFullNameBr() {
-        var first = FIRST_NAMES[ThreadLocalRandom.current().nextInt(FIRST_NAMES.length)];
-        var last1 = LAST_NAMES[ThreadLocalRandom.current().nextInt(LAST_NAMES.length)];
-        var last2 = LAST_NAMES[ThreadLocalRandom.current().nextInt(LAST_NAMES.length)];
-        return first + " " + last1 + " " + last2;
+        return randomFullNameBrData().full();
     }
 
     public static String randomAddressBr() {
+        return randomAddressBrData().full();
+    }
+
+    public static String randomPhoneBrDdd() {
+        return randomPhoneBrData().ddd();
+    }
+
+    public static String randomPhoneBrNumber() {
+        return randomPhoneBrData().number();
+    }
+
+    public static String randomFirstNameBr() {
+        return randomFullNameBrData().firstName();
+    }
+
+    public static String randomMiddleNameBr() {
+        return randomFullNameBrData().middleName();
+    }
+
+    public static String randomLastNameBr() {
+        return randomFullNameBrData().lastName();
+    }
+
+    public static String randomAddressBrStreet() {
+        return randomAddressBrData().street();
+    }
+
+    public static String randomAddressBrNumber() {
+        return String.valueOf(randomAddressBrData().number());
+    }
+
+    public static String randomAddressBrNeighborhood() {
+        return randomAddressBrData().neighborhood();
+    }
+
+    public static String randomAddressBrCity() {
+        return randomAddressBrData().city();
+    }
+
+    public static String randomAddressBrState() {
+        return randomAddressBrData().state();
+    }
+
+    public static String randomAddressBrCep() {
+        return randomAddressBrData().cep();
+    }
+
+    private static PhoneBr randomPhoneBrData() {
+        int ddd = ThreadLocalRandom.current().nextInt(11, 100);
+        int suffix = ThreadLocalRandom.current().nextInt(1_0000_0000);
+        return new PhoneBr(String.format("%02d", ddd), String.format("9%08d", suffix));
+    }
+
+    private static FullNameBr randomFullNameBrData() {
+        var first = FIRST_NAMES[ThreadLocalRandom.current().nextInt(FIRST_NAMES.length)];
+        var middle = LAST_NAMES[ThreadLocalRandom.current().nextInt(LAST_NAMES.length)];
+        var last = LAST_NAMES[ThreadLocalRandom.current().nextInt(LAST_NAMES.length)];
+        return new FullNameBr(first, middle, last);
+    }
+
+    private static AddressBr randomAddressBrData() {
         var street = STREETS[ThreadLocalRandom.current().nextInt(STREETS.length)];
         int number = ThreadLocalRandom.current().nextInt(1, 9999);
         var neighborhood = NEIGHBORHOODS[ThreadLocalRandom.current().nextInt(NEIGHBORHOODS.length)];
@@ -95,7 +151,7 @@ public final class BrazilianDataGenerator {
         var city = CITIES[idx];
         var state = STATES[idx];
         var cep = randomCep();
-        return street + ", " + number + " - " + neighborhood + ", " + city + " - " + state + ", " + cep;
+        return new AddressBr(street, number, neighborhood, city, state, cep);
     }
 
     private static int cnpjCheckDigit(int[] digits, int length) {
@@ -109,5 +165,23 @@ public final class BrazilianDataGenerator {
         }
         int mod = sum % 11;
         return mod < 2 ? 0 : 11 - mod;
+    }
+
+    private record PhoneBr(String ddd, String number) {
+        private String full() {
+            return ddd + number;
+        }
+    }
+
+    private record FullNameBr(String firstName, String middleName, String lastName) {
+        private String full() {
+            return firstName + " " + middleName + " " + lastName;
+        }
+    }
+
+    private record AddressBr(String street, int number, String neighborhood, String city, String state, String cep) {
+        private String full() {
+            return street + ", " + number + " - " + neighborhood + ", " + city + " - " + state + ", " + cep;
+        }
     }
 }

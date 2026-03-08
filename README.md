@@ -365,6 +365,19 @@ You can use templates in URL, headers and body:
 {{$fullNameBr}}     # Nome completo brasileiro randomico
 {{$addressBr}}      # Endereco brasileiro randomico
 
+# partes especificas BR (tambem funcionam com prefixo faker.)
+{{phone_br.ddd}}
+{{phone_br.number}}
+{{full_name_br.first_name}}
+{{full_name_br.middle_name}}
+{{full_name_br.last_name}}
+{{address_br.street}}
+{{address_br.number}}
+{{address_br.neighborhood}}
+{{address_br.city}}
+{{address_br.state}}
+{{address_br.cep}}
+
 # ambiente
 {{base_url}}
 {{env.base_url}}
@@ -421,6 +434,37 @@ col-run minha-api 1
 
 # executar TODOS de uma vez (smoke test) / run ALL at once (smoke test)
 col-run-all minha-api
+```
+
+### Aliases customizados
+
+Crie atalhos de comando para acelerar o fluxo.
+
+Create command shortcuts to speed up your workflow.
+
+```bash
+alias-set gh-health "get https://api.github.com/health --call 5 --parallel 2"
+aliases
+a gh-health
+alias-run gh-health --args "--output health.json"
+alias-rm gh-health
+```
+
+### Import de OpenAPI/Swagger e Postman
+
+Importe especificacoes para gerar collections automaticamente e, no caso de OpenAPI, mocks iniciais.
+
+Import specs to generate collections automatically and, for OpenAPI, initial mocks.
+
+```bash
+# OpenAPI/Swagger JSON -> collection + mocks
+import-openapi @/home/user/openapi.json --collection pet-api --mocks true
+
+# OpenAPI sem gerar mocks
+import-openapi @/home/user/openapi.json --collection pet-api --mocks false
+
+# Postman collection JSON -> collection
+import-postman @/home/user/postman_collection.json --collection postman-api
 ```
 
 O `col-run-all` mostra uma tabela com o resultado de cada request.
@@ -616,6 +660,17 @@ Inside mock body/headers, you can use:
 {{faker.phone_br}}
 {{faker.full_name_br}}
 {{faker.address_br}}
+{{faker.phone_br.ddd}}
+{{faker.phone_br.number}}
+{{faker.full_name_br.first_name}}
+{{faker.full_name_br.middle_name}}
+{{faker.full_name_br.last_name}}
+{{faker.address_br.street}}
+{{faker.address_br.number}}
+{{faker.address_br.neighborhood}}
+{{faker.address_br.city}}
+{{faker.address_br.state}}
+{{faker.address_br.cep}}
 ```
 
 Exemplo:
@@ -885,6 +940,11 @@ They are simple JSON files — you can edit them manually if you want.
 | `send <METHOD> <url> [--header ...] [--body ...] [--param ...] [--call N] [--parallel P] [--output file]` | Request customizado / Custom request |
 | `bench <url> [--method] [--header] [--body] [--calls] [--concurrency] [--warmup]` | Benchmark dedicado / Dedicated benchmark |
 | `import-curl "<cmd>" [--save col:name] [--dry-run]` | Importar cURL / Import cURL |
+| `import-openapi <file> [--collection] [--base-url] [--mocks]` | Importar OpenAPI/Swagger / Import OpenAPI/Swagger |
+| `import-postman <file> [--collection]` | Importar collection Postman / Import Postman collection |
+| `alias-set <name> "<command>"` | Criar/atualizar alias / Create/update alias |
+| `alias-run <name> [--args "..."]` | Executar alias / Execute alias |
+| `aliases / alias-rm <name>` | Listar/remover aliases / List/remove aliases |
 
 ### Resposta / Response
 

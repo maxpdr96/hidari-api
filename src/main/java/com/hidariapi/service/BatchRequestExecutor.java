@@ -10,7 +10,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
@@ -48,8 +47,10 @@ public class BatchRequestExecutor {
             try {
                 var response = apiService.execute(request);
                 boolean ok = response.statusCode() < 400;
-                if (ok) success++;
-                else failed++;
+                if (ok)
+                    success++;
+                else
+                    failed++;
                 totalMs += response.duration().toMillis();
                 calls.add(CallResult.success(i, Instant.now(), request, response));
             } catch (Exception e) {
@@ -123,8 +124,7 @@ public class BatchRequestExecutor {
             int success,
             int failed,
             long totalDurationMs,
-            List<CallResult> calls
-    ) {
+            List<CallResult> calls) {
         public long averageDurationMs() {
             return callCount > 0 ? totalDurationMs / callCount : 0;
         }
@@ -151,7 +151,8 @@ public class BatchRequestExecutor {
 
         public long percentile(int p) {
             var values = successfulDurations();
-            if (values.isEmpty()) return 0;
+            if (values.isEmpty())
+                return 0;
             values.sort(Long::compareTo);
             int index = (int) Math.ceil((p / 100.0) * values.size()) - 1;
             index = Math.max(0, Math.min(index, values.size() - 1));
@@ -174,8 +175,7 @@ public class BatchRequestExecutor {
             Instant timestamp,
             ApiRequest request,
             ApiResponse response,
-            String error
-    ) {
+            String error) {
         public static CallResult success(int index, Instant timestamp, ApiRequest request, ApiResponse response) {
             return new CallResult(index, timestamp, request, response, null);
         }

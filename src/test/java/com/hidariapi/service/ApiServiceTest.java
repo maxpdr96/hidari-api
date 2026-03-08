@@ -72,8 +72,17 @@ class ApiServiceTest {
                 .withHeader("X-Cnpj", "{{faker.cnpj}}")
                 .withHeader("X-Cep", "{{faker.cep}}")
                 .withHeader("X-Phone", "{{faker.phone_br}}")
+                .withHeader("X-Phone-Ddd", "{{phone_br.ddd}}")
+                .withHeader("X-Phone-Number", "{{phone_br.number}}")
                 .withHeader("X-Full-Name", "{{faker.full_name_br}}")
-                .withHeader("X-Address", "{{faker.address_br}}");
+                .withHeader("X-First-Name", "{{full_name_br.first_name}}")
+                .withHeader("X-Middle-Name", "{{full_name_br.middle_name}}")
+                .withHeader("X-Last-Name", "{{full_name_br.last_name}}")
+                .withHeader("X-Address", "{{faker.address_br}}")
+                .withHeader("X-Address-Number", "{{address_br.number}}")
+                .withHeader("X-Address-City", "{{address_br.city}}")
+                .withHeader("X-Address-State", "{{address_br.state}}")
+                .withHeader("X-Address-Cep", "{{address_br.cep}}");
 
         var second = service.execute(secondReq);
         assertEquals(200, second.statusCode());
@@ -85,8 +94,17 @@ class ApiServiceTest {
         assertTrue(sent.headers().get("X-Cnpj").matches("\\d{14}"));
         assertTrue(sent.headers().get("X-Cep").matches("\\d{8}"));
         assertTrue(sent.headers().get("X-Phone").matches("\\d{2}9\\d{8}"));
+        assertTrue(sent.headers().get("X-Phone-Ddd").matches("\\d{2}"));
+        assertTrue(sent.headers().get("X-Phone-Number").matches("9\\d{8}"));
         assertTrue(sent.headers().get("X-Full-Name").split(" ").length >= 3);
+        assertTrue(sent.headers().get("X-First-Name").matches("[A-Za-z]+"));
+        assertTrue(sent.headers().get("X-Middle-Name").matches("[A-Za-z]+"));
+        assertTrue(sent.headers().get("X-Last-Name").matches("[A-Za-z]+"));
         assertTrue(sent.headers().get("X-Address").matches(".*\\d{8}$"));
+        assertTrue(sent.headers().get("X-Address-Number").matches("\\d+"));
+        assertTrue(sent.headers().get("X-Address-City").length() >= 3);
+        assertTrue(sent.headers().get("X-Address-State").matches("[A-Z]{2}"));
+        assertTrue(sent.headers().get("X-Address-Cep").matches("\\d{8}"));
     }
 
     @Test

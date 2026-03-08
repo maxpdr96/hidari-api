@@ -56,6 +56,19 @@ class BrazilianDataGeneratorTest {
         }
     }
 
+    @Test
+    void structuredBrazilianFieldsGenerateExpectedFormats() {
+        assertTrue(BrazilianDataGenerator.randomPhoneBrDdd().matches("\\d{2}"));
+        assertTrue(BrazilianDataGenerator.randomPhoneBrNumber().matches("9\\d{8}"));
+        assertTrue(BrazilianDataGenerator.randomFirstNameBr().matches("[A-Za-z]+"));
+        assertTrue(BrazilianDataGenerator.randomMiddleNameBr().matches("[A-Za-z]+"));
+        assertTrue(BrazilianDataGenerator.randomLastNameBr().matches("[A-Za-z]+"));
+        assertTrue(BrazilianDataGenerator.randomAddressBrNumber().matches("\\d+"));
+        assertTrue(BrazilianDataGenerator.randomAddressBrCep().matches("\\d{8}"));
+        assertTrue(BrazilianDataGenerator.randomAddressBrCity().length() >= 3);
+        assertTrue(BrazilianDataGenerator.randomAddressBrState().matches("[A-Z]{2}"));
+    }
+
     private boolean isValidCpf(String cpf) {
         int[] d = cpf.chars().map(c -> c - '0').toArray();
         int d10 = checkDigit(d, 9, 10);

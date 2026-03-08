@@ -271,6 +271,9 @@ public class MockServerService {
     }
 
     private String resolveTemplateStructuredExpression(String expr, TemplateContext context) {
+        var brFaker = resolveBrazilianStructuredFaker(expr);
+        if (brFaker != null) return brFaker;
+
         if (expr.startsWith("param.")) {
             return context.pathParams().get(expr.substring("param.".length()));
         }
@@ -282,6 +285,37 @@ public class MockServerService {
             return words.get(ThreadLocalRandom.current().nextInt(words.size()));
         }
         return null;
+    }
+
+    private String resolveBrazilianStructuredFaker(String expr) {
+        String key = normalizeBrazilianFakerKey(expr);
+        return switch (key) {
+            case "phone_br" -> BrazilianDataGenerator.randomPhoneBr();
+            case "phone_br.ddd" -> BrazilianDataGenerator.randomPhoneBrDdd();
+            case "phone_br.number" -> BrazilianDataGenerator.randomPhoneBrNumber();
+            case "full_name_br" -> BrazilianDataGenerator.randomFullNameBr();
+            case "full_name_br.first_name" -> BrazilianDataGenerator.randomFirstNameBr();
+            case "full_name_br.middle_name" -> BrazilianDataGenerator.randomMiddleNameBr();
+            case "full_name_br.last_name" -> BrazilianDataGenerator.randomLastNameBr();
+            case "address_br" -> BrazilianDataGenerator.randomAddressBr();
+            case "address_br.street" -> BrazilianDataGenerator.randomAddressBrStreet();
+            case "address_br.number" -> BrazilianDataGenerator.randomAddressBrNumber();
+            case "address_br.neighborhood" -> BrazilianDataGenerator.randomAddressBrNeighborhood();
+            case "address_br.city" -> BrazilianDataGenerator.randomAddressBrCity();
+            case "address_br.state" -> BrazilianDataGenerator.randomAddressBrState();
+            case "address_br.cep" -> BrazilianDataGenerator.randomAddressBrCep();
+            default -> null;
+        };
+    }
+
+    private String normalizeBrazilianFakerKey(String expr) {
+        String key = expr;
+        if (key.startsWith("faker.")) key = key.substring("faker.".length());
+        if (key.startsWith("$")) key = key.substring(1);
+        key = key.replace("phoneBr.", "phone_br.")
+                .replace("fullNameBr.", "full_name_br.")
+                .replace("addressBr.", "address_br.");
+        return key;
     }
 
     private Map<String, String> extractPathParams(String routePath, String requestPath) {
