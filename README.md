@@ -450,7 +450,7 @@ alias-run gh-health --args "--output health.json"
 alias-rm gh-health
 ```
 
-### Config centralizada (config + profiles + shortcuts)
+### Config centralizada (config + profiles)
 
 Agora a ferramenta possui configuracao central em `config.json` (inclui `language`).
 
@@ -474,11 +474,6 @@ profile-set-base-url dev http://localhost:8080
 profile-use dev
 profile-list
 
-# atalhos configuraveis (feature de hotkeys/shortcuts)
-shortcut-set health "get /health"
-shortcuts
-shortcut-run health
-shortcut-rm health
 ```
 
 ### Import de OpenAPI/Swagger e Postman
@@ -978,7 +973,6 @@ They are simple JSON files — you can edit them manually if you want.
 | `aliases / alias-rm <name>` | Listar/remover aliases / List/remove aliases |
 | `config-set <key> <value> / config-get <key> / config-list` | Configuracao central / Central config |
 | `profile-use <name> / profile-set-base-url <p> <url> / profile-list` | Profiles de config / Config profiles |
-| `shortcut-set <name> "<command>" / shortcut-run <name> / shortcuts` | Atalhos configuraveis / Configurable shortcuts |
 
 ### Resposta / Response
 

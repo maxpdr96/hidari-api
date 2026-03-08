@@ -15,63 +15,46 @@ public record AppConfig(
         int defaultParallel,
         String defaultOutput,
         String activeProfile,
-        Map<String, AppProfileConfig> profiles,
-        Map<String, String> shortcuts
+        Map<String, AppProfileConfig> profiles
 ) {
     public static AppConfig defaults() {
         var profiles = new LinkedHashMap<String, AppProfileConfig>();
         profiles.put("default", AppProfileConfig.empty());
-        return new AppConfig(Language.PT, 1, 1, null, "default", profiles, new LinkedHashMap<>());
+        return new AppConfig(Language.PT, 1, 1, null, "default", profiles);
     }
 
     public AppConfig withLanguage(Language language) {
-        return new AppConfig(language, defaultCall, defaultParallel, defaultOutput, activeProfile, profiles, shortcuts);
+        return new AppConfig(language, defaultCall, defaultParallel, defaultOutput, activeProfile, profiles);
     }
 
     public AppConfig withDefaultCall(int value) {
-        return new AppConfig(language, value, defaultParallel, defaultOutput, activeProfile, profiles, shortcuts);
+        return new AppConfig(language, value, defaultParallel, defaultOutput, activeProfile, profiles);
     }
 
     public AppConfig withDefaultParallel(int value) {
-        return new AppConfig(language, defaultCall, value, defaultOutput, activeProfile, profiles, shortcuts);
+        return new AppConfig(language, defaultCall, value, defaultOutput, activeProfile, profiles);
     }
 
     public AppConfig withDefaultOutput(String value) {
-        return new AppConfig(language, defaultCall, defaultParallel, value, activeProfile, profiles, shortcuts);
+        return new AppConfig(language, defaultCall, defaultParallel, value, activeProfile, profiles);
     }
 
     public AppConfig withActiveProfile(String profile) {
         var p = ensureProfiles();
         p.putIfAbsent(profile, AppProfileConfig.empty());
-        return new AppConfig(language, defaultCall, defaultParallel, defaultOutput, profile, p, ensureShortcuts());
+        return new AppConfig(language, defaultCall, defaultParallel, defaultOutput, profile, p);
     }
 
     public AppConfig withProfileBaseUrl(String profile, String baseUrl) {
         var p = ensureProfiles();
         var existing = p.getOrDefault(profile, AppProfileConfig.empty());
         p.put(profile, existing.withBaseUrl(baseUrl));
-        return new AppConfig(language, defaultCall, defaultParallel, defaultOutput, activeProfile, p, ensureShortcuts());
-    }
-
-    public AppConfig withShortcut(String name, String command) {
-        var s = ensureShortcuts();
-        s.put(name, command);
-        return new AppConfig(language, defaultCall, defaultParallel, defaultOutput, activeProfile, ensureProfiles(), s);
-    }
-
-    public AppConfig withoutShortcut(String name) {
-        var s = ensureShortcuts();
-        s.remove(name);
-        return new AppConfig(language, defaultCall, defaultParallel, defaultOutput, activeProfile, ensureProfiles(), s);
+        return new AppConfig(language, defaultCall, defaultParallel, defaultOutput, activeProfile, p);
     }
 
     public Map<String, AppProfileConfig> ensureProfiles() {
         var p = profiles != null ? new LinkedHashMap<>(profiles) : new LinkedHashMap<String, AppProfileConfig>();
         p.putIfAbsent("default", AppProfileConfig.empty());
         return p;
-    }
-
-    public Map<String, String> ensureShortcuts() {
-        return shortcuts != null ? new LinkedHashMap<>(shortcuts) : new LinkedHashMap<>();
     }
 }

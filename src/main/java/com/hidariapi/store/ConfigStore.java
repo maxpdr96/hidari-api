@@ -60,8 +60,7 @@ public class ConfigStore {
                 normalized.defaultParallel(),
                 normalized.defaultOutput(),
                 normalized.activeProfile(),
-                normalized.ensureProfiles(),
-                normalized.ensureShortcuts()
+                normalized.ensureProfiles()
         );
     }
 }

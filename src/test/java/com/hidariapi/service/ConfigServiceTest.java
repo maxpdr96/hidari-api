@@ -17,7 +17,7 @@ class ConfigServiceTest {
     }
 
     @Test
-    void persistsLanguageDefaultsProfilesAndShortcuts() {
+    void persistsLanguageDefaultsAndProfiles() {
         var service = new ConfigService(new ConfigStore());
         assertEquals(Language.PT, service.getLanguage());
         assertEquals(1, service.getDefaultCall());
@@ -29,7 +29,6 @@ class ConfigServiceTest {
         service.setDefaultOutput("out.json");
         service.setProfileBaseUrl("dev", "http://localhost:8080");
         service.useProfile("dev");
-        service.setShortcut("health", "get /health");
 
         var reloaded = new ConfigService(new ConfigStore());
         assertEquals(Language.EN, reloaded.getLanguage());
@@ -38,7 +37,6 @@ class ConfigServiceTest {
         assertEquals("out.json", reloaded.getDefaultOutput());
         assertEquals("dev", reloaded.getActiveProfile());
         assertEquals("http://localhost:8080/health", reloaded.resolveUrlWithBaseProfile("/health"));
-        assertEquals("get /health", reloaded.getShortcut("health").orElseThrow());
     }
 
     @Test
@@ -50,7 +48,6 @@ class ConfigServiceTest {
         assertTrue(service.setByKey("request.default-parallel", "4"));
         assertTrue(service.setByKey("profile.active", "staging"));
         assertTrue(service.setByKey("profile.staging.base-url", "https://api.staging"));
-        assertTrue(service.setByKey("shortcut.k1", "get /ping"));
         assertFalse(service.setByKey("invalid.key", "x"));
 
         assertEquals("en", service.getByKey("language"));
@@ -58,6 +55,5 @@ class ConfigServiceTest {
         assertEquals("4", service.getByKey("request.default-parallel"));
         assertEquals("staging", service.getByKey("profile.active"));
         assertEquals("https://api.staging", service.getByKey("profile.staging.base-url"));
-        assertEquals("get /ping", service.getByKey("shortcut.k1"));
     }
 }

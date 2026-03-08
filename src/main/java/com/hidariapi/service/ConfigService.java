@@ -8,7 +8,6 @@ import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Optional;
 
 @Service
 public class ConfigService {
@@ -97,27 +96,6 @@ public class ConfigService {
         return base + url;
     }
 
-    public Map<String, String> listShortcuts() {
-        return config.ensureShortcuts();
-    }
-
-    public Optional<String> getShortcut(String name) {
-        return Optional.ofNullable(config.ensureShortcuts().get(normalize(name)));
-    }
-
-    public void setShortcut(String name, String command) {
-        config = config.withShortcut(normalize(name), command);
-        persist();
-    }
-
-    public boolean removeShortcut(String name) {
-        var key = normalize(name);
-        if (!config.ensureShortcuts().containsKey(key)) return false;
-        config = config.withoutShortcut(key);
-        persist();
-        return true;
-    }
-
     public Map<String, String> listFlat() {
         var out = new LinkedHashMap<String, String>();
         out.put("language", config.language().name().toLowerCase());
@@ -127,9 +105,6 @@ public class ConfigService {
         out.put("profile.active", config.activeProfile());
         for (var e : config.ensureProfiles().entrySet()) {
             out.put("profile." + e.getKey() + ".base-url", e.getValue().baseUrl() != null ? e.getValue().baseUrl() : "");
-        }
-        for (var s : config.ensureShortcuts().entrySet()) {
-            out.put("shortcut." + s.getKey(), s.getValue());
         }
         return out;
     }
@@ -150,10 +125,6 @@ public class ConfigService {
                 if (key.startsWith("profile.") && key.endsWith(".base-url")) {
                     var profile = key.substring("profile.".length(), key.length() - ".base-url".length());
                     setProfileBaseUrl(profile, value);
-                    return true;
-                }
-                if (key.startsWith("shortcut.")) {
-                    setShortcut(key.substring("shortcut.".length()), value);
                     return true;
                 }
                 return false;
