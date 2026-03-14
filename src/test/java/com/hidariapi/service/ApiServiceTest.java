@@ -48,6 +48,13 @@ class ApiServiceTest {
             ex.getResponseBody().write(bytes);
             ex.close();
         });
+        server.createContext("/chat", ex -> {
+            byte[] bytes = ex.getRequestURI().getRawQuery().getBytes(StandardCharsets.UTF_8);
+            ex.getResponseHeaders().add("Content-Type", "text/plain");
+            ex.sendResponseHeaders(200, bytes.length);
+            ex.getResponseBody().write(bytes);
+            ex.close();
+        });
         server.start();
     }
 
@@ -121,5 +128,16 @@ class ApiServiceTest {
         service.saveResponseToFile(out.toString());
         assertTrue(Files.exists(out));
         assertTrue(Files.readString(out).contains("nested"));
+    }
+
+    @Test
+    void executeEncodesSpacesAndUnicodeInQuery() throws Exception {
+        var service = new ApiService(new CollectionStore(), new HistoryStore(20), new EnvironmentStore(), 5);
+
+        var response = service.execute(ApiRequest.of("chat", HttpMethod.GET,
+                "http://localhost:" + port + "/chat?msg=Me diga uma curiosidade inútil."));
+
+        assertEquals(200, response.statusCode());
+        assertEquals("msg=Me%20diga%20uma%20curiosidade%20in%C3%BAtil.", response.body());
     }
 }

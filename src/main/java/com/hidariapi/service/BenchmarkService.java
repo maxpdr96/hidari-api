@@ -2,10 +2,10 @@ package com.hidariapi.service;
 
 import com.hidariapi.model.ApiRequest;
 import com.hidariapi.model.ApiResponse;
+import com.hidariapi.util.UrlSanitizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -108,7 +108,7 @@ public class BenchmarkService {
 
     private ApiResponse executeOnce(ApiRequest request) throws Exception {
         var builder = HttpRequest.newBuilder()
-                .uri(URI.create(request.url()))
+                .uri(UrlSanitizer.toUri(request.url()))
                 .timeout(Duration.ofSeconds(timeoutSeconds));
 
         for (var h : request.headers().entrySet()) {

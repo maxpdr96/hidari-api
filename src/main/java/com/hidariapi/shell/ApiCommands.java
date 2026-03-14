@@ -71,7 +71,7 @@ public class ApiCommands extends LocalizedSupport {
 
     @Command(name = "get", description = "Envia requisicao GET")
     public String get(
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "param", defaultValue = "",
                     description = "Query params (formato key=value, multiplos separados por &)") String params,
             @Option(longName = "call", defaultValue = "0",
@@ -85,7 +85,7 @@ public class ApiCommands extends LocalizedSupport {
 
     @Command(name = "post", description = "Envia requisicao POST com body JSON")
     public String post(
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "body", defaultValue = "",
                     description = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
             @Option(longName = "param", defaultValue = "",
@@ -105,7 +105,7 @@ public class ApiCommands extends LocalizedSupport {
 
     @Command(name = "put", description = "Envia requisicao PUT com body JSON")
     public String put(
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "body", defaultValue = "",
                     description = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
             @Option(longName = "param", defaultValue = "",
@@ -125,7 +125,7 @@ public class ApiCommands extends LocalizedSupport {
 
     @Command(name = "patch", description = "Envia requisicao PATCH com body JSON")
     public String patch(
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "body", defaultValue = "",
                     description = "Body JSON (use @arquivo.json para ler de arquivo)") String body,
             @Option(longName = "param", defaultValue = "",
@@ -145,7 +145,7 @@ public class ApiCommands extends LocalizedSupport {
 
     @Command(name = "delete", description = "Envia requisicao DELETE")
     public String delete(
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "param", defaultValue = "",
                     description = "Query params (formato key=value, multiplos separados por &)") String params,
             @Option(longName = "call", defaultValue = "0",
@@ -159,7 +159,7 @@ public class ApiCommands extends LocalizedSupport {
 
     @Command(name = "head", description = "Envia requisicao HEAD (retorna apenas headers)")
     public String head(
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "call", defaultValue = "0",
                     description = "Numero de chamadas sequenciais") int callCount,
             @Option(longName = "parallel", defaultValue = "0",
@@ -171,7 +171,7 @@ public class ApiCommands extends LocalizedSupport {
 
     @Command(name = "options", description = "Envia requisicao OPTIONS")
     public String options(
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "call", defaultValue = "0",
                     description = "Numero de chamadas sequenciais") int callCount,
             @Option(longName = "parallel", defaultValue = "0",
@@ -184,7 +184,7 @@ public class ApiCommands extends LocalizedSupport {
     @Command(name = "send", description = "Envia request customizado (metodo, url, headers, body)")
     public String send(
             @Option(description = "Metodo HTTP (GET, POST, PUT, etc.)", required = true) String method,
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "header", defaultValue = "",
                     description = "Header (formato Key:Value, multiplos separados por ;)") String headers,
             @Option(longName = "body", defaultValue = "",
@@ -213,7 +213,7 @@ public class ApiCommands extends LocalizedSupport {
 
     @Command(name = "bench", description = "Benchmark endpoint with calls/concurrency/warmup and latency percentiles")
     public String bench(
-            @Option(description = "URL", required = true) String url,
+            @Option(longName = "url", description = "URL", required = true) String url,
             @Option(longName = "method", defaultValue = "GET", description = "Metodo HTTP") String method,
             @Option(longName = "header", defaultValue = "",
                     description = "Headers (formato Key:Value, multiplos separados por ;)") String headers,

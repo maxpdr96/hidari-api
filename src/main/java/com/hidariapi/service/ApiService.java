@@ -7,11 +7,11 @@ import com.hidariapi.store.CollectionStore;
 import com.hidariapi.store.EnvironmentStore;
 import com.hidariapi.store.HistoryStore;
 import com.hidariapi.util.TemplateResolver;
+import com.hidariapi.util.UrlSanitizer;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
-import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
@@ -319,7 +319,7 @@ public class ApiService {
 
     private HttpRequest buildHttpRequest(ApiRequest resolved, TemplateContext context) {
         var builder = HttpRequest.newBuilder()
-                .uri(URI.create(resolved.url()))
+                .uri(UrlSanitizer.toUri(resolved.url()))
                 .timeout(Duration.ofSeconds(timeoutSeconds));
 
         for (var entry : defaultHeaders.entrySet()) {
